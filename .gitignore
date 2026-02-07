@@ -40,7 +40,12 @@ docs/storycraft/
 # Environment
 .env
 .env.local
+.env.*
+!.env.example
 service-account.json
+
+# Local Codex runtime metadata
+.codex/
 
 # Git backup
 .git.backup

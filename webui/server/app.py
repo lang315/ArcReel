@@ -3,7 +3,7 @@
 
 启动方式:
     cd cc-novel2video
-    python -m uvicorn webui.server.app:app --reload --port 8080
+    uv run uvicorn webui.server.app:app --reload --port 8080
 """
 
 import sys
@@ -18,7 +18,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from webui.server.routers import projects, characters, clues, files, generate, versions, usage
+from webui.server.routers import (
+    assistant,
+    projects,
+    characters,
+    clues,
+    files,
+    generate,
+    versions,
+    usage,
+)
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -44,6 +53,7 @@ app.include_router(files.router, prefix="/api/v1", tags=["文件管理"])
 app.include_router(generate.router, prefix="/api/v1", tags=["生成"])
 app.include_router(versions.router, prefix="/api/v1", tags=["版本管理"])
 app.include_router(usage.router, prefix="/api/v1", tags=["费用统计"])
+app.include_router(assistant.router, prefix="/api/v1", tags=["助手会话"])
 
 # 静态文件服务 - 前端页面
 webui_dir = Path(__file__).parent.parent
@@ -52,21 +62,17 @@ app.mount("/css", StaticFiles(directory=webui_dir / "css"), name="css")
 
 
 @app.get("/", include_in_schema=False)
-async def serve_index():
-    """服务首页"""
-    return FileResponse(webui_dir / "index.html")
+async def serve_root():
+    """服务 React 前端入口"""
+    return FileResponse(webui_dir / "app.html")
 
 
-@app.get("/project.html", include_in_schema=False)
-async def serve_project():
-    """服务项目详情页"""
-    return FileResponse(webui_dir / "project.html")
-
-
-@app.get("/usage.html", include_in_schema=False)
-async def serve_usage():
-    """服务费用统计页"""
-    return FileResponse(webui_dir / "usage.html")
+@app.get("/app", include_in_schema=False)
+@app.get("/app/", include_in_schema=False)
+@app.get("/app/{subpath:path}", include_in_schema=False)
+async def serve_dashboard(subpath: str = ""):
+    """服务 React 前端入口"""
+    return FileResponse(webui_dir / "app.html")
 
 
 @app.get("/health")

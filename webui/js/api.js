@@ -403,6 +403,71 @@ class API {
         });
     }
 
+    // ==================== 助手会话 API ====================
+
+    static async createAssistantSession(projectName, title = '') {
+        return this.request('/assistant/sessions', {
+            method: 'POST',
+            body: JSON.stringify({ project_name: projectName, title }),
+        });
+    }
+
+    static async listAssistantSessions(projectName = null, status = null) {
+        const params = new URLSearchParams();
+        if (projectName) params.append('project_name', projectName);
+        if (status) params.append('status', status);
+        const query = params.toString();
+        return this.request(`/assistant/sessions${query ? '?' + query : ''}`);
+    }
+
+    static async listAssistantMessages(sessionId, limit = 200) {
+        return this.request(`/assistant/sessions/${encodeURIComponent(sessionId)}/messages?limit=${limit}`);
+    }
+
+    static async listAssistantSkills(projectName = null) {
+        const params = new URLSearchParams();
+        if (projectName) params.append('project_name', projectName);
+        const query = params.toString();
+        return this.request(`/assistant/skills${query ? '?' + query : ''}`);
+    }
+
+    static async sendAssistantMessage(sessionId, content) {
+        return this.request(`/assistant/sessions/${encodeURIComponent(sessionId)}/messages`, {
+            method: 'POST',
+            body: JSON.stringify({ content }),
+        });
+    }
+
+    static async startAssistantMessageStream(sessionId, content, clientMessageId = null) {
+        const payload = { content, stream: true };
+        if (clientMessageId) {
+            payload.client_message_id = clientMessageId;
+        }
+        return this.request(`/assistant/sessions/${encodeURIComponent(sessionId)}/messages`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+    }
+
+    static async archiveAssistantSession(sessionId) {
+        return this.request(`/assistant/sessions/${encodeURIComponent(sessionId)}/archive`, {
+            method: 'POST',
+        });
+    }
+
+    static async updateAssistantSession(sessionId, updates) {
+        return this.request(`/assistant/sessions/${encodeURIComponent(sessionId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updates),
+        });
+    }
+
+    static async deleteAssistantSession(sessionId) {
+        return this.request(`/assistant/sessions/${encodeURIComponent(sessionId)}`, {
+            method: 'DELETE',
+        });
+    }
+
     // ==================== 费用统计 API ====================
 
     /**

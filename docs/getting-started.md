@@ -163,7 +163,7 @@ cp .env.example .env
 用文本编辑器打开 `.env` 文件，找到 `GEMINI_API_KEY=` 这一行，将你的 API 密钥粘贴在等号后面：
 
 ```
-GEMINI_API_KEY=AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxx
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
 
 保存文件，环境准备完成！
@@ -303,7 +303,7 @@ python -m uvicorn webui.server.app:app --reload --port 8080
 
 **查看费用统计：**
 
-- Web UI：访问 http://localhost:8080/usage.html
+- Web UI：访问 http://localhost:8080/app/usage
 - 命令行：查看项目目录下的费用日志
 
 **减少重复生成：**
