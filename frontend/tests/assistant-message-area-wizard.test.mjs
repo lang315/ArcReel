@@ -57,3 +57,13 @@ test("pending question area should render wizard progress and only current quest
     assert.ok(markup.includes("问题A：选项目"));
     assert.ok(!markup.includes("问题B：选内容"));
 });
+
+test("pending question area should be height-limited to keep chat visible", () => {
+    const markup = renderArea();
+
+    assert.ok(markup.includes("max-h-[38%]"));
+    assert.ok(markup.includes("overflow-hidden"));
+    assert.ok(markup.includes("flex-1 min-h-0 overflow-y-auto"));
+    assert.ok(markup.includes("px-2.5 py-2"));
+    assert.ok(markup.includes("text-[11px]"));
+});

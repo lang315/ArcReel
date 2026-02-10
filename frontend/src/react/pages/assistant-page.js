@@ -340,7 +340,7 @@ export function AssistantMessageArea({
                       `
                     : null}
             </div>
-            <div ref=${assistantChatScrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div ref=${assistantChatScrollRef} className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
                 ${assistantMessagesLoading
                     ? html`<p className="text-sm text-slate-400">消息加载中...</p>`
                     : assistantComposedMessages.length === 0
@@ -351,105 +351,108 @@ export function AssistantMessageArea({
             </div>
             ${hasPendingQuestion
                 ? html`
-                      <form className="px-3 py-3 border-t border-amber-300/20 bg-amber-500/5 space-y-3" onSubmit=${handleAnswerSubmit}>
-                          <div className="text-xs uppercase tracking-wide text-amber-300">
-                              需要你的选择
-                          </div>
-                          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                              ${pendingQuestions.map((question, questionIndex) => {
-                                  const isActiveStep = questionIndex === normalizedQuestionIndex;
-                                  const isVisitedStep =
-                                      isActiveStep || visitedQuestionIndexes.includes(questionIndex);
-                                  return html`
-                                      <button
-                                          key=${`${assistantPendingQuestion.id}-step-${questionIndex}`}
-                                          type="button"
-                                          onClick=${() => handleSelectQuestionStep(questionIndex)}
-                                          disabled=${assistantAnsweringQuestion || !isVisitedStep}
-                                          className=${cn(
-                                              "shrink-0 rounded-full px-3 py-1 text-xs border transition-colors",
-                                              isActiveStep
-                                                  ? "border-amber-300/60 bg-amber-300/20 text-amber-100"
-                                                  : isVisitedStep
-                                                      ? "border-white/20 bg-white/5 text-slate-200 hover:bg-white/10"
-                                                      : "border-white/10 bg-white/5 text-slate-500 cursor-not-allowed"
-                                          )}
-                                      >
-                                          ${`${questionIndex + 1}. ${question?.header || `问题 ${questionIndex + 1}`}`}
-                                      </button>
-                                  `;
-                              })}
-                          </div>
-                          <p className="text-xs text-slate-400">
-                              ${`问题 ${normalizedQuestionIndex + 1}/${totalPendingQuestions}`}
-                          </p>
-                          ${currentQuestion
-                              ? html`
-                                    <section className="rounded-lg border border-amber-300/20 bg-ink-900/40 p-3">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            ${currentQuestion?.header
-                                                ? html`<${Badge} className="bg-amber-300/15 text-amber-200">${currentQuestion.header}<//>`
-                                                : null}
-                                            <span className="text-xs text-slate-400">
-                                                ${currentQuestion?.multiSelect ? "可多选" : "单选"}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm text-slate-100 mb-2">
-                                            ${currentQuestion?.question || "请选择一个选项"}
-                                        </p>
-                                        <div className="space-y-2">
-                                            ${currentQuestionOptions.map((option, optionIndex) => {
-                                                const checked = currentQuestion?.multiSelect
-                                                    ? Array.isArray(currentQuestionAnswer) && currentQuestionAnswer.includes(option.value)
-                                                    : currentQuestionAnswer === option.value;
-                                                return html`
-                                                    <label key=${`${currentQuestionKey}-${optionIndex}`} className="block rounded-md border border-white/10 bg-white/5 px-3 py-2 cursor-pointer hover:bg-white/10">
-                                                        <div className="flex items-start gap-2">
-                                                            <input
-                                                                type=${currentQuestion?.multiSelect ? "checkbox" : "radio"}
-                                                                name=${`assistant-question-${assistantPendingQuestion.id}-${currentQuestionKey}`}
-                                                                checked=${checked}
-                                                                disabled=${assistantAnsweringQuestion}
-                                                                onChange=${(event) => {
-                                                                    if (currentQuestion?.multiSelect) {
-                                                                        toggleMultiQuestionAnswer(currentQuestionKey, option.value, event.target.checked);
-                                                                    } else {
-                                                                        setSingleQuestionAnswer(currentQuestionKey, option.value);
-                                                                    }
-                                                                }}
-                                                                className="mt-1"
-                                                            />
-                                                            <div>
-                                                                <div className="text-sm text-slate-100">${option.label}</div>
-                                                                ${option?.description
-                                                                    ? html`<div className="text-xs text-slate-400 mt-1">${option.description}</div>`
-                                                                    : null}
+                      <form className="px-2.5 py-2 border-t border-amber-300/20 bg-amber-500/5 max-h-[38%] min-h-0 flex flex-col gap-2 overflow-hidden" onSubmit=${handleAnswerSubmit}>
+                          <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
+                              <div className="text-[11px] uppercase tracking-wide text-amber-300">
+                                  需要你的选择
+                              </div>
+                              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+                                  ${pendingQuestions.map((question, questionIndex) => {
+                                      const isActiveStep = questionIndex === normalizedQuestionIndex;
+                                      const isVisitedStep =
+                                          isActiveStep || visitedQuestionIndexes.includes(questionIndex);
+                                      return html`
+                                          <button
+                                              key=${`${assistantPendingQuestion.id}-step-${questionIndex}`}
+                                              type="button"
+                                              onClick=${() => handleSelectQuestionStep(questionIndex)}
+                                              disabled=${assistantAnsweringQuestion || !isVisitedStep}
+                                              className=${cn(
+                                                  "shrink-0 rounded-full px-2.5 py-0.5 text-[11px] border transition-colors",
+                                                  isActiveStep
+                                                      ? "border-amber-300/60 bg-amber-300/20 text-amber-100"
+                                                      : isVisitedStep
+                                                          ? "border-white/20 bg-white/5 text-slate-200 hover:bg-white/10"
+                                                          : "border-white/10 bg-white/5 text-slate-500 cursor-not-allowed"
+                                              )}
+                                          >
+                                              ${`${questionIndex + 1}. ${question?.header || `问题 ${questionIndex + 1}`}`}
+                                          </button>
+                                      `;
+                                  })}
+                              </div>
+                              <p className="text-[11px] text-slate-400">
+                                  ${`问题 ${normalizedQuestionIndex + 1}/${totalPendingQuestions}`}
+                              </p>
+                              ${currentQuestion
+                                  ? html`
+                                        <section className="rounded-lg border border-amber-300/20 bg-ink-900/40 p-2.5">
+                                            <div className="flex items-center gap-1.5 mb-1.5">
+                                                ${currentQuestion?.header
+                                                    ? html`<${Badge} className="bg-amber-300/15 text-amber-200">${currentQuestion.header}<//>`
+                                                    : null}
+                                                <span className="text-[11px] text-slate-400">
+                                                    ${currentQuestion?.multiSelect ? "可多选" : "单选"}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-100 mb-1.5">
+                                                ${currentQuestion?.question || "请选择一个选项"}
+                                            </p>
+                                            <div className="space-y-1.5">
+                                                ${currentQuestionOptions.map((option, optionIndex) => {
+                                                    const checked = currentQuestion?.multiSelect
+                                                        ? Array.isArray(currentQuestionAnswer) && currentQuestionAnswer.includes(option.value)
+                                                        : currentQuestionAnswer === option.value;
+                                                    return html`
+                                                        <label key=${`${currentQuestionKey}-${optionIndex}`} className="block rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 cursor-pointer hover:bg-white/10">
+                                                            <div className="flex items-start gap-2">
+                                                                <input
+                                                                    type=${currentQuestion?.multiSelect ? "checkbox" : "radio"}
+                                                                    name=${`assistant-question-${assistantPendingQuestion.id}-${currentQuestionKey}`}
+                                                                    checked=${checked}
+                                                                    disabled=${assistantAnsweringQuestion}
+                                                                    onChange=${(event) => {
+                                                                        if (currentQuestion?.multiSelect) {
+                                                                            toggleMultiQuestionAnswer(currentQuestionKey, option.value, event.target.checked);
+                                                                        } else {
+                                                                            setSingleQuestionAnswer(currentQuestionKey, option.value);
+                                                                        }
+                                                                    }}
+                                                                    className="mt-1"
+                                                                />
+                                                                <div>
+                                                                    <div className="text-xs text-slate-100">${option.label}</div>
+                                                                    ${option?.description
+                                                                        ? html`<div className="text-[11px] text-slate-400 mt-0.5">${option.description}</div>`
+                                                                        : null}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    </label>
-                                                `;
-                                            })}
-                                        </div>
-                                        ${isOtherSelected(currentQuestion, currentQuestionAnswer)
-                                            ? html`
-                                                  <div className="mt-2">
-                                                      <input
-                                                          type="text"
-                                                          value=${currentQuestionCustomAnswer}
-                                                          onChange=${(event) => setCustomQuestionAnswer(currentQuestionKey, event.target.value)}
-                                                          placeholder="请输入其他内容"
-                                                          disabled=${assistantAnsweringQuestion}
-                                                          className="w-full rounded-md border border-amber-300/30 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
-                                                      />
-                                                  </div>
-                                              `
-                                            : null}
-                                    </section>
-                                `
-                              : null}
-                          <div className="flex items-center justify-between gap-2">
+                                                        </label>
+                                                    `;
+                                                })}
+                                            </div>
+                                            ${isOtherSelected(currentQuestion, currentQuestionAnswer)
+                                                ? html`
+                                                      <div className="mt-1.5">
+                                                          <input
+                                                              type="text"
+                                                              value=${currentQuestionCustomAnswer}
+                                                              onChange=${(event) => setCustomQuestionAnswer(currentQuestionKey, event.target.value)}
+                                                              placeholder="请输入其他内容"
+                                                              disabled=${assistantAnsweringQuestion}
+                                                              className="w-full rounded-md border border-amber-300/30 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-500"
+                                                          />
+                                                      </div>
+                                                  `
+                                                : null}
+                                        </section>
+                                    `
+                                  : null}
+                          </div>
+                          <div className="flex items-center justify-between gap-2 pt-0.5 border-t border-white/10">
                               <${Button}
                                   type="button"
+                                  size="sm"
                                   variant="ghost"
                                   onClick=${handlePreviousQuestion}
                                   disabled=${assistantAnsweringQuestion || isFirstQuestion}
@@ -460,6 +463,7 @@ export function AssistantMessageArea({
                                   ? html`
                                         <${Button}
                                             type="submit"
+                                            size="sm"
                                             disabled=${assistantAnsweringQuestion || !allQuestionsReady}
                                         >
                                             ${assistantAnsweringQuestion ? "提交中..." : "完成并提交"}
@@ -468,6 +472,7 @@ export function AssistantMessageArea({
                                   : html`
                                         <${Button}
                                             type="button"
+                                            size="sm"
                                             onClick=${handleNextQuestion}
                                             disabled=${assistantAnsweringQuestion || !currentQuestionReady}
                                         >
