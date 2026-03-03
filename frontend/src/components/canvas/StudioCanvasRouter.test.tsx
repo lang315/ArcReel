@@ -26,17 +26,17 @@ vi.mock("./timeline/TimelineCanvas", () => ({
     onGenerateVideo,
   }: {
     episodeScript: unknown;
-    onUpdatePrompt?: (segmentId: string, field: string, value: unknown) => void;
-    onGenerateStoryboard?: (segmentId: string) => void;
-    onGenerateVideo?: (segmentId: string) => void;
+    onUpdatePrompt?: (itemUid: string, field: string, value: unknown) => void;
+    onGenerateStoryboard?: (itemUid: string) => void;
+    onGenerateVideo?: (itemUid: string) => void;
   }) => (
     <div data-testid="timeline-canvas">
       <div data-testid="timeline-has-script">{episodeScript ? "yes" : "no"}</div>
-      <button onClick={() => onUpdatePrompt?.("SEG-1", "image_prompt", "new prompt")}>
+      <button onClick={() => onUpdatePrompt?.("itm_111111111111", "image_prompt", "new prompt")}>
         update-prompt
       </button>
-      <button onClick={() => onGenerateStoryboard?.("SEG-1")}>generate-storyboard</button>
-      <button onClick={() => onGenerateVideo?.("SEG-1")}>generate-video</button>
+      <button onClick={() => onGenerateStoryboard?.("itm_111111111111")}>generate-storyboard</button>
+      <button onClick={() => onGenerateVideo?.("itm_111111111111")}>generate-video</button>
     </div>
   ),
 }));
@@ -160,6 +160,7 @@ function makeProjectData(overrides: Partial<ProjectData> = {}): ProjectData {
 
 function makeScript(): EpisodeScript {
   return {
+    schema_version: 2,
     episode: 1,
     title: "EP1",
     content_mode: "narration",
@@ -170,7 +171,8 @@ function makeScript(): EpisodeScript {
     clues_in_episode: ["Key"],
     segments: [
       {
-        segment_id: "SEG-1",
+        item_uid: "itm_111111111111",
+        segment_id: "E1S01",
         episode: 1,
         duration_seconds: 4,
         segment_break: false,
@@ -182,6 +184,10 @@ function makeScript(): EpisodeScript {
         transition_to_next: "cut",
       },
     ],
+    metadata: {
+      created_at: "2026-03-03T00:00:00Z",
+      updated_at: "2026-03-03T00:00:00Z",
+    },
   };
 }
 
@@ -350,7 +356,7 @@ describe("StudioCanvasRouter", () => {
       project: makeProjectData(),
       scripts: { "episode_1.json": makeScript() },
     });
-    vi.spyOn(API, "updateSegment").mockRejectedValue(new Error("update failed"));
+    vi.spyOn(API, "updateScriptItem").mockRejectedValue(new Error("update failed"));
     vi.spyOn(API, "generateStoryboard").mockRejectedValue(new Error("storyboard failed"));
     vi.spyOn(API, "generateVideo").mockRejectedValue(new Error("video failed"));
 
@@ -358,8 +364,9 @@ describe("StudioCanvasRouter", () => {
 
     fireEvent.click(screen.getByText("update-prompt"));
     await waitFor(() => {
-      expect(API.updateSegment).toHaveBeenCalledWith("demo", "SEG-1", {
-        image_prompt: "new prompt",
+      expect(API.updateScriptItem).toHaveBeenCalledWith("demo", "episode_1.json", "itm_111111111111", {
+        base_updated_at: "2026-03-03T00:00:00Z",
+        updates: { image_prompt: "new prompt" },
       });
       expect(useAppStore.getState().toast?.text).toContain("更新 Prompt 失败");
     });
@@ -368,7 +375,7 @@ describe("StudioCanvasRouter", () => {
     await waitFor(() => {
       expect(API.generateStoryboard).toHaveBeenCalledWith(
         "demo",
-        "SEG-1",
+        "itm_111111111111",
         "image prompt",
         "episode_1.json",
       );
@@ -379,7 +386,7 @@ describe("StudioCanvasRouter", () => {
     await waitFor(() => {
       expect(API.generateVideo).toHaveBeenCalledWith(
         "demo",
-        "SEG-1",
+        "itm_111111111111",
         "video prompt",
         "episode_1.json",
         4,

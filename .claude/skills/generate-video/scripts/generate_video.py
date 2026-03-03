@@ -43,6 +43,8 @@ from lib.prompt_utils import (
     video_prompt_to_yaml,
     is_structured_video_prompt
 )
+from lib.script_item_service import build_asset_relative_path
+from lib.storyboard_sequence import get_storyboard_items
 
 
 # ============================================================================
@@ -63,7 +65,7 @@ def get_video_prompt(item: dict) -> str:
     """
     prompt = item.get('video_prompt')
     if not prompt:
-        item_id = item.get('segment_id') or item.get('scene_id')
+        item_id = get_display_id(item)
         raise ValueError(f"片段/场景缺少 video_prompt 字段: {item_id}")
 
     # 检测是否为结构化格式
@@ -73,11 +75,11 @@ def get_video_prompt(item: dict) -> str:
 
     # 避免将 dict 直接下传导致类型错误
     if isinstance(prompt, dict):
-        item_id = item.get('segment_id') or item.get('scene_id')
+        item_id = get_display_id(item)
         raise ValueError(f"片段/场景 video_prompt 为对象但格式不符合结构化规范: {item_id}")
 
     if not isinstance(prompt, str):
-        item_id = item.get('segment_id') or item.get('scene_id')
+        item_id = get_display_id(item)
         raise TypeError(f"片段/场景 video_prompt 类型无效（期望 str 或 dict）: {item_id}")
 
     return prompt
@@ -118,20 +120,31 @@ def get_items_from_script(script: dict) -> tuple:
     Returns:
         (items_list, id_field, char_field, clue_field) 元组
     """
-    content_mode = script.get('content_mode', 'narration')
-    if content_mode == 'narration' and 'segments' in script:
-        return (
-            script['segments'],
-            'segment_id',
-            'characters_in_segment',
-            'clues_in_segment'
-        )
-    return (
-        script.get('scenes', []),
-        'scene_id',
-        'characters_in_scene',
-        'clues_in_scene'
-    )
+    return get_storyboard_items(script)
+
+
+def get_display_id(item: dict) -> str:
+    return str(item.get('segment_id') or item.get('scene_id') or item.get('item_uid') or 'unknown')
+
+
+def get_resource_id(item: dict, id_field: str) -> str:
+    resource_id = str(item.get(id_field) or "").strip()
+    if not resource_id:
+        raise ValueError(f"片段/场景缺少 {id_field}: {get_display_id(item)}")
+    return resource_id
+
+
+def matches_requested_id(item: dict, id_field: str, requested_id: str) -> bool:
+    candidate_ids = {
+        str(item.get(id_field) or ""),
+        str(item.get("segment_id") or ""),
+        str(item.get("scene_id") or ""),
+    }
+    return str(requested_id) in candidate_ids
+
+
+def get_video_relative_path(resource_id: str) -> str:
+    return build_asset_relative_path("videos", resource_id)
 
 
 def parse_scene_ids(scenes_arg: str) -> list:
@@ -456,20 +469,21 @@ def generate_episode_video(
     checkpoint_lock = threading.Lock()
 
     for idx, item in enumerate(episode_items):
-        item_id = item.get(id_field, item.get('scene_id', f'item_{idx}'))
-        video_output = videos_dir / f"scene_{item_id}.mp4"
+        resource_id = get_resource_id(item, id_field)
+        display_id = get_display_id(item)
+        video_output = videos_dir / Path(get_video_relative_path(resource_id)).name
 
         # 检查是否已完成
-        if item_id in completed_scenes:
+        if resource_id in completed_scenes:
             if video_output.exists():
-                print(f"  [{idx + 1}/{len(episode_items)}] {item_type} {item_id} ✓ 已完成")
+                print(f"  [{idx + 1}/{len(episode_items)}] {item_type} {display_id} ✓ 已完成")
                 ordered_video_paths[idx] = video_output
                 continue
             else:
                 # 标记为完成但文件不存在，需要重新生成
-                completed_scenes.remove(item_id)
+                completed_scenes.remove(resource_id)
 
-        print(f"  [{idx + 1}/{len(episode_items)}] {item_type} {item_id}")
+        print(f"  [{idx + 1}/{len(episode_items)}] {item_type} {display_id}")
 
         # 检查分镜图
         storyboard_image = item.get('generated_assets', {}).get('storyboard_image')
@@ -489,19 +503,21 @@ def generate_episode_video(
 
         tasks.append({
             "order_index": idx,
-            "item_id": item_id,
+            "resource_id": resource_id,
+            "display_id": display_id,
             "storyboard_path": storyboard_path,
             "prompt": prompt,
             "duration_str": duration_str,
         })
 
     def generate_single_item(task: dict) -> tuple[int, Path]:
-        item_id = task["item_id"]
+        resource_id = task["resource_id"]
+        display_id = task["display_id"]
         storyboard_path = task["storyboard_path"]
         prompt = task["prompt"]
         duration_str = task["duration_str"]
 
-        print(f"    🎥 生成视频（{duration_str}秒）... {item_id}")
+        print(f"    🎥 生成视频（{duration_str}秒）... {display_id}")
 
         if queue_worker_online:
             try:
@@ -509,7 +525,7 @@ def generate_episode_video(
                     project_name=project_name,
                     task_type="video",
                     media_type="video",
-                    resource_id=item_id,
+                    resource_id=resource_id,
                     payload={
                         "prompt": prompt,
                         "script_file": script_filename,
@@ -519,23 +535,23 @@ def generate_episode_video(
                     source="skill",
                 )
                 result = queued.get("result") or {}
-                relative_path = result.get("file_path") or f"videos/scene_{item_id}.mp4"
+                relative_path = result.get("file_path") or get_video_relative_path(resource_id)
                 video_output = project_dir / relative_path
             except WorkerOfflineError:
                 video_output = _generate_video_direct(
                     project_dir=project_dir,
                     rate_limiter=rate_limiter,
                     prompt=prompt,
-                    resource_id=item_id,
+                    resource_id=resource_id,
                     storyboard_path=storyboard_path,
                     aspect_ratio=video_aspect_ratio,
                     duration_seconds=duration_str,
                 )
-                relative_path = f"videos/scene_{item_id}.mp4"
+                relative_path = get_video_relative_path(resource_id)
                 with script_update_lock:
-                    pm.update_scene_asset(
+                    pm.update_item_asset(
                         project_name, script_filename,
-                        item_id, 'video_clip', relative_path
+                        resource_id, 'video_clip', relative_path
                     )
             except TaskFailedError as exc:
                 raise RuntimeError(f"队列任务失败: {exc}") from exc
@@ -544,21 +560,21 @@ def generate_episode_video(
                 project_dir=project_dir,
                 rate_limiter=rate_limiter,
                 prompt=prompt,
-                resource_id=item_id,
+                resource_id=resource_id,
                 storyboard_path=storyboard_path,
                 aspect_ratio=video_aspect_ratio,
                 duration_seconds=duration_str,
             )
-            relative_path = f"videos/scene_{item_id}.mp4"
+            relative_path = get_video_relative_path(resource_id)
             with script_update_lock:
-                pm.update_scene_asset(
+                pm.update_item_asset(
                     project_name, script_filename,
-                    item_id, 'video_clip', relative_path
+                    resource_id, 'video_clip', relative_path
                 )
 
         # 保存 checkpoint（线程安全）
         with checkpoint_lock:
-            completed_scenes.append(item_id)
+            completed_scenes.append(resource_id)
             save_checkpoint(project_dir, episode, completed_scenes, started_at)
 
         print(f"    ✅ 完成: {video_output.name}")
@@ -639,17 +655,20 @@ def generate_scene_video(
     # 找到指定场景/片段
     item = None
     for s in all_items:
-        if s.get(id_field) == scene_id or s.get('scene_id') == scene_id:
+        if matches_requested_id(s, id_field, scene_id):
             item = s
             break
 
     if not item:
         raise ValueError(f"场景/片段 '{scene_id}' 不存在")
 
+    resource_id = get_resource_id(item, id_field)
+    display_id = get_display_id(item)
+
     # 检查分镜图
     storyboard_image = item.get('generated_assets', {}).get('storyboard_image')
     if not storyboard_image:
-        raise ValueError(f"场景/片段 '{scene_id}' 没有分镜图，请先运行 generate-storyboard")
+        raise ValueError(f"场景/片段 '{display_id}' 没有分镜图，请先运行 generate-storyboard")
 
     storyboard_path = project_dir / storyboard_image
     if not storyboard_path.exists():
@@ -666,7 +685,7 @@ def generate_scene_video(
     queue_worker_online = is_worker_online()
     rate_limiter = get_shared_rate_limiter()
 
-    print(f"🎬 正在生成视频: 场景/片段 {scene_id}")
+    print(f"🎬 正在生成视频: 场景/片段 {display_id}")
     print(f"   画面比例: {video_aspect_ratio}")
     print("   预计等待时间: 1-6 分钟")
     print("   任务模式: 队列入队并等待" if queue_worker_online else "   任务模式: 直连生成（worker 离线）")
@@ -677,7 +696,7 @@ def generate_scene_video(
                 project_name=project_name,
                 task_type="video",
                 media_type="video",
-                resource_id=scene_id,
+                resource_id=resource_id,
                 payload={
                     "prompt": prompt,
                     "script_file": script_filename,
@@ -687,20 +706,20 @@ def generate_scene_video(
                 source="skill",
             )
             result = queued.get("result") or {}
-            relative_path = result.get("file_path") or f"videos/scene_{scene_id}.mp4"
+            relative_path = result.get("file_path") or get_video_relative_path(resource_id)
             output_path = project_dir / relative_path
         except WorkerOfflineError:
             output_path = _generate_video_direct(
                 project_dir=project_dir,
                 rate_limiter=rate_limiter,
                 prompt=prompt,
-                resource_id=scene_id,
+                resource_id=resource_id,
                 storyboard_path=storyboard_path,
                 aspect_ratio=video_aspect_ratio,
                 duration_seconds=duration_str,
             )
-            relative_path = f"videos/scene_{scene_id}.mp4"
-            pm.update_scene_asset(project_name, script_filename, scene_id, 'video_clip', relative_path)
+            relative_path = get_video_relative_path(resource_id)
+            pm.update_item_asset(project_name, script_filename, resource_id, 'video_clip', relative_path)
         except TaskFailedError as exc:
             raise RuntimeError(f"队列任务失败: {exc}") from exc
     else:
@@ -708,13 +727,13 @@ def generate_scene_video(
             project_dir=project_dir,
             rate_limiter=rate_limiter,
             prompt=prompt,
-            resource_id=scene_id,
+            resource_id=resource_id,
             storyboard_path=storyboard_path,
             aspect_ratio=video_aspect_ratio,
             duration_seconds=duration_str,
         )
-        relative_path = f"videos/scene_{scene_id}.mp4"
-        pm.update_scene_asset(project_name, script_filename, scene_id, 'video_clip', relative_path)
+        relative_path = get_video_relative_path(resource_id)
+        pm.update_item_asset(project_name, script_filename, resource_id, 'video_clip', relative_path)
 
     print(f"✅ 视频已保存: {output_path}")
 
@@ -769,10 +788,11 @@ def generate_all_videos(project_name: str, script_filename: str, max_workers: in
 
     tasks = []
     for item in pending_items:
-        item_id = item.get(id_field) or item.get('scene_id') or item.get('segment_id')
+        resource_id = get_resource_id(item, id_field)
+        display_id = get_display_id(item)
         storyboard_image = (item.get('generated_assets') or {}).get('storyboard_image')
         if not storyboard_image:
-            print(f"⚠️  {item_type} {item_id} 没有分镜图，跳过")
+            print(f"⚠️  {item_type} {display_id} 没有分镜图，跳过")
             continue
 
         storyboard_path = project_dir / storyboard_image
@@ -783,14 +803,15 @@ def generate_all_videos(project_name: str, script_filename: str, max_workers: in
         try:
             prompt = get_video_prompt(item)
         except Exception as e:
-            print(f"⚠️  {item_type} {item_id} 的 video_prompt 无效，跳过: {e}")
+            print(f"⚠️  {item_type} {display_id} 的 video_prompt 无效，跳过: {e}")
             continue
 
         duration = item.get('duration_seconds', default_duration)
         duration_str = validate_duration(duration)
 
         tasks.append({
-            "item_id": item_id,
+            "resource_id": resource_id,
+            "display_id": display_id,
             "storyboard_path": storyboard_path,
             "prompt": prompt,
             "duration_str": duration_str,
@@ -803,19 +824,20 @@ def generate_all_videos(project_name: str, script_filename: str, max_workers: in
     script_update_lock = threading.Lock()
 
     def generate_single_item(task: dict) -> Path:
-        item_id = task["item_id"]
+        resource_id = task["resource_id"]
+        display_id = task["display_id"]
         storyboard_path = task["storyboard_path"]
         prompt = task["prompt"]
         duration_str = task["duration_str"]
 
-        print(f"🎥 生成视频（{duration_str}秒）... {item_id}")
+        print(f"🎥 生成视频（{duration_str}秒）... {display_id}")
         if queue_worker_online:
             try:
                 queued = enqueue_and_wait(
                     project_name=project_name,
                     task_type="video",
                     media_type="video",
-                    resource_id=item_id,
+                    resource_id=resource_id,
                     payload={
                         "prompt": prompt,
                         "script_file": script_filename,
@@ -825,21 +847,21 @@ def generate_all_videos(project_name: str, script_filename: str, max_workers: in
                     source="skill",
                 )
                 result = queued.get("result") or {}
-                relative_path = result.get("file_path") or f"videos/scene_{item_id}.mp4"
+                relative_path = result.get("file_path") or get_video_relative_path(resource_id)
                 output_path = project_dir / relative_path
             except WorkerOfflineError:
                 output_path = _generate_video_direct(
                     project_dir=project_dir,
                     rate_limiter=rate_limiter,
                     prompt=prompt,
-                    resource_id=item_id,
+                    resource_id=resource_id,
                     storyboard_path=storyboard_path,
                     aspect_ratio=video_aspect_ratio,
                     duration_seconds=duration_str,
                 )
-                relative_path = f"videos/scene_{item_id}.mp4"
+                relative_path = get_video_relative_path(resource_id)
                 with script_update_lock:
-                    pm.update_scene_asset(project_name, script_filename, item_id, 'video_clip', relative_path)
+                    pm.update_item_asset(project_name, script_filename, resource_id, 'video_clip', relative_path)
             except TaskFailedError as exc:
                 raise RuntimeError(f"队列任务失败: {exc}") from exc
         else:
@@ -847,14 +869,14 @@ def generate_all_videos(project_name: str, script_filename: str, max_workers: in
                 project_dir=project_dir,
                 rate_limiter=rate_limiter,
                 prompt=prompt,
-                resource_id=item_id,
+                resource_id=resource_id,
                 storyboard_path=storyboard_path,
                 aspect_ratio=video_aspect_ratio,
                 duration_seconds=duration_str,
             )
-            relative_path = f"videos/scene_{item_id}.mp4"
+            relative_path = get_video_relative_path(resource_id)
             with script_update_lock:
-                pm.update_scene_asset(project_name, script_filename, item_id, 'video_clip', relative_path)
+                pm.update_item_asset(project_name, script_filename, resource_id, 'video_clip', relative_path)
 
         print(f"✅ 完成: {output_path.name}")
         return output_path
@@ -864,7 +886,7 @@ def generate_all_videos(project_name: str, script_filename: str, max_workers: in
     if failures:
         print(f"\n⚠️  {len(failures)} 个{item_type}生成失败:")
         for task, error in failures:
-            item_id = task.get("item_id") if isinstance(task, dict) else str(task)
+            item_id = task.get("display_id") if isinstance(task, dict) else str(task)
             print(f"   - {item_id}: {error}")
 
     print(f"\n🎉 批量视频生成完成，共 {len(successes)} 个")
@@ -916,7 +938,7 @@ def generate_selected_videos(
     for scene_id in scene_ids:
         found = False
         for item in all_items:
-            if item.get(id_field) == scene_id or item.get('scene_id') == scene_id:
+            if matches_requested_id(item, id_field, scene_id):
                 selected_items.append(item)
                 found = True
                 break
@@ -969,19 +991,20 @@ def generate_selected_videos(
             }, f, ensure_ascii=False, indent=2)
 
     for idx, item in enumerate(selected_items):
-        item_id = item.get(id_field, item.get('scene_id', f'item_{idx}'))
-        video_output = videos_dir / f"scene_{item_id}.mp4"
+        resource_id = get_resource_id(item, id_field)
+        display_id = get_display_id(item)
+        video_output = videos_dir / Path(get_video_relative_path(resource_id)).name
 
         # 检查是否已完成
-        if item_id in completed_scenes:
+        if resource_id in completed_scenes:
             if video_output.exists():
-                print(f"  [{idx + 1}/{len(selected_items)}] {item_type} {item_id} ✓ 已完成")
+                print(f"  [{idx + 1}/{len(selected_items)}] {item_type} {display_id} ✓ 已完成")
                 ordered_results[idx] = video_output
                 continue
             else:
-                completed_scenes.remove(item_id)
+                completed_scenes.remove(resource_id)
 
-        print(f"  [{idx + 1}/{len(selected_items)}] {item_type} {item_id}")
+        print(f"  [{idx + 1}/{len(selected_items)}] {item_type} {display_id}")
 
         # 检查分镜图
         storyboard_image = item.get('generated_assets', {}).get('storyboard_image')
@@ -1000,26 +1023,28 @@ def generate_selected_videos(
 
         tasks.append({
             "order_index": idx,
-            "item_id": item_id,
+            "resource_id": resource_id,
+            "display_id": display_id,
             "storyboard_path": storyboard_path,
             "prompt": prompt,
             "duration_str": duration_str,
         })
 
     def generate_single_item(task: dict) -> tuple[int, Path]:
-        item_id = task["item_id"]
+        resource_id = task["resource_id"]
+        display_id = task["display_id"]
         storyboard_path = task["storyboard_path"]
         prompt = task["prompt"]
         duration_str = task["duration_str"]
 
-        print(f"    🎥 生成视频（{duration_str}秒）... {item_id}")
+        print(f"    🎥 生成视频（{duration_str}秒）... {display_id}")
         if queue_worker_online:
             try:
                 queued = enqueue_and_wait(
                     project_name=project_name,
                     task_type="video",
                     media_type="video",
-                    resource_id=item_id,
+                    resource_id=resource_id,
                     payload={
                         "prompt": prompt,
                         "script_file": script_filename,
@@ -1029,23 +1054,23 @@ def generate_selected_videos(
                     source="skill",
                 )
                 result = queued.get("result") or {}
-                relative_path = result.get("file_path") or f"videos/scene_{item_id}.mp4"
+                relative_path = result.get("file_path") or get_video_relative_path(resource_id)
                 video_output = project_dir / relative_path
             except WorkerOfflineError:
                 video_output = _generate_video_direct(
                     project_dir=project_dir,
                     rate_limiter=rate_limiter,
                     prompt=prompt,
-                    resource_id=item_id,
+                    resource_id=resource_id,
                     storyboard_path=storyboard_path,
                     aspect_ratio=video_aspect_ratio,
                     duration_seconds=duration_str,
                 )
-                relative_path = f"videos/scene_{item_id}.mp4"
+                relative_path = get_video_relative_path(resource_id)
                 with script_update_lock:
-                    pm.update_scene_asset(
+                    pm.update_item_asset(
                         project_name, script_filename,
-                        item_id, 'video_clip', relative_path
+                        resource_id, 'video_clip', relative_path
                     )
             except TaskFailedError as exc:
                 raise RuntimeError(f"队列任务失败: {exc}") from exc
@@ -1054,20 +1079,20 @@ def generate_selected_videos(
                 project_dir=project_dir,
                 rate_limiter=rate_limiter,
                 prompt=prompt,
-                resource_id=item_id,
+                resource_id=resource_id,
                 storyboard_path=storyboard_path,
                 aspect_ratio=video_aspect_ratio,
                 duration_seconds=duration_str,
             )
-            relative_path = f"videos/scene_{item_id}.mp4"
+            relative_path = get_video_relative_path(resource_id)
             with script_update_lock:
-                pm.update_scene_asset(
+                pm.update_item_asset(
                     project_name, script_filename,
-                    item_id, 'video_clip', relative_path
+                    resource_id, 'video_clip', relative_path
                 )
 
         with checkpoint_lock:
-            completed_scenes.append(item_id)
+            completed_scenes.append(resource_id)
             save_selected_checkpoint()
 
         print(f"    ✅ 完成: {video_output.name}")

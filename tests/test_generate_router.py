@@ -34,6 +34,7 @@ class _FakePM:
     def __init__(self, project_path: Path):
         self.project_path = project_path
         self.project = {
+            "schema_version": 2,
             "style": "Anime",
             "style_description": "cinematic",
             "content_mode": "narration",
@@ -53,17 +54,22 @@ class _FakePM:
             },
         }
         self.script = {
+            "schema_version": 2,
             "content_mode": "narration",
             "segments": [
                 {
+                    "item_uid": "itm_111111111111",
                     "segment_id": "E1S01",
                     "duration_seconds": 4,
                     "segment_break": False,
                     "characters_in_segment": [],
                     "clues_in_segment": [],
-                    "generated_assets": {},
+                    "generated_assets": {
+                        "storyboard_image": "storyboards/item_itm_111111111111.png",
+                    },
                 },
                 {
+                    "item_uid": "itm_222222222222",
                     "segment_id": "E1S02",
                     "duration_seconds": 4,
                     "segment_break": False,
@@ -72,6 +78,7 @@ class _FakePM:
                     "generated_assets": {},
                 },
                 {
+                    "item_uid": "itm_333333333333",
                     "segment_id": "E1S03",
                     "duration_seconds": 4,
                     "segment_break": True,
@@ -92,8 +99,16 @@ class _FakePM:
     def load_script(self, project_name, script_file):
         return self.script
 
-    def update_scene_asset(self, **kwargs):
+    def update_item_asset(self, **kwargs):
         self.updated.append(kwargs)
+
+    def get_current_asset_path(self, project_name, script_file, item_uid, resource_type):
+        filename = (
+            f"storyboards/item_{item_uid}.png"
+            if resource_type == "storyboards"
+            else f"videos/item_{item_uid}.mp4"
+        )
+        return self.script, {}, self.project_path / filename, filename
 
     def save_project(self, project_name, project):
         self.project = project
@@ -107,7 +122,7 @@ def _prepare_files(tmp_path: Path) -> Path:
     (project_path / "characters" / "refs").mkdir(parents=True, exist_ok=True)
     (project_path / "clues").mkdir(parents=True, exist_ok=True)
 
-    (project_path / "storyboards" / "scene_E1S01.png").write_bytes(b"png")
+    (project_path / "storyboards" / "item_itm_111111111111.png").write_bytes(b"png")
     (project_path / "characters" / "Alice.png").write_bytes(b"png")
     (project_path / "characters" / "refs" / "Alice_ref.png").write_bytes(b"png")
     (project_path / "clues" / "玉佩.png").write_bytes(b"png")
@@ -133,7 +148,7 @@ class TestGenerateRouter:
 
         with client:
             sb = client.post(
-                "/api/v1/projects/demo/generate/storyboard/E1S02",
+                "/api/v1/projects/demo/generate/storyboard/itm_222222222222",
                 json={
                     "script_file": "episode_1.json",
                     "prompt": {
@@ -148,21 +163,21 @@ class TestGenerateRouter:
                 project_path / "characters" / "Alice.png",
                 project_path / "clues" / "玉佩.png",
                 {
-                    "image": project_path / "storyboards" / "scene_E1S01.png",
+                    "image": project_path / "storyboards" / "item_itm_111111111111.png",
                     "label": PREVIOUS_STORYBOARD_REFERENCE_LABEL,
                     "description": PREVIOUS_STORYBOARD_REFERENCE_DESCRIPTION,
                 },
             ]
 
             first_scene = client.post(
-                "/api/v1/projects/demo/generate/storyboard/E1S01",
+                "/api/v1/projects/demo/generate/storyboard/itm_111111111111",
                 json={"script_file": "episode_1.json", "prompt": "首镜头"},
             )
             assert first_scene.status_code == 200
             assert fake_generator.image_calls[1]["reference_images"] is None
 
             segment_break = client.post(
-                "/api/v1/projects/demo/generate/storyboard/E1S03",
+                "/api/v1/projects/demo/generate/storyboard/itm_333333333333",
                 json={"script_file": "episode_1.json", "prompt": "切场镜头"},
             )
             assert segment_break.status_code == 200
@@ -172,7 +187,7 @@ class TestGenerateRouter:
             ]
 
             video = client.post(
-                "/api/v1/projects/demo/generate/video/E1S01",
+                "/api/v1/projects/demo/generate/video/itm_111111111111",
                 json={
                     "script_file": "episode_1.json",
                     "duration_seconds": 5,
@@ -207,15 +222,17 @@ class TestGenerateRouter:
         project_path = _prepare_files(tmp_path)
         fake_pm = _FakePM(project_path)
         fake_pm.script = {
+            "schema_version": 2,
             "content_mode": "narration",
             "scenes": [
                 {
+                    "item_uid": "itm_111111111111",
                     "scene_id": "E1S01",
                     "duration_seconds": 4,
                     "segment_break": False,
                     "characters_in_scene": ["Alice"],
                     "clues_in_scene": ["玉佩"],
-                    "generated_assets": {},
+                    "generated_assets": {"storyboard_image": "storyboards/item_itm_111111111111.png"},
                 }
             ],
         }
@@ -224,7 +241,7 @@ class TestGenerateRouter:
 
         with client:
             response = client.post(
-                "/api/v1/projects/demo/generate/storyboard/E1S01",
+                "/api/v1/projects/demo/generate/storyboard/itm_111111111111",
                 json={"script_file": "episode_1.json", "prompt": "兼容场景"},
             )
 
@@ -242,21 +259,21 @@ class TestGenerateRouter:
 
         with client:
             bad_prompt = client.post(
-                "/api/v1/projects/demo/generate/storyboard/E1S02",
+                "/api/v1/projects/demo/generate/storyboard/itm_222222222222",
                 json={"script_file": "episode_1.json", "prompt": {"composition": {}}},
             )
             assert bad_prompt.status_code == 400
 
             # remove storyboard so video endpoint hits pre-check error
-            (project_path / "storyboards" / "scene_E1S01.png").unlink()
+            (project_path / "storyboards" / "item_itm_111111111111.png").unlink()
             no_storyboard = client.post(
-                "/api/v1/projects/demo/generate/video/E1S01",
+                "/api/v1/projects/demo/generate/video/itm_111111111111",
                 json={"script_file": "episode_1.json", "prompt": "text"},
             )
             assert no_storyboard.status_code == 400
 
             bad_video_prompt = client.post(
-                "/api/v1/projects/demo/generate/video/E1S01",
+                "/api/v1/projects/demo/generate/video/itm_111111111111",
                 json={"script_file": "episode_1.json", "prompt": {"action": ""}},
             )
             assert bad_video_prompt.status_code in (400, 500)

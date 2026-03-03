@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 from lib import PROJECT_ROOT
 from lib.project_change_hints import project_change_source
 from lib.project_manager import ProjectManager
+from lib.script_item_service import MigrationRequiredError, ensure_schema_v2
 from lib.version_manager import VersionManager
 
 router = APIRouter()
@@ -48,6 +49,11 @@ async def get_versions(
     """
     try:
         vm = get_version_manager(project_name)
+        if resource_type in {"storyboards", "videos"}:
+            manager = get_project_manager()
+            script_file, script, _ = manager.find_item_reference(project_name, resource_id)
+            project = manager.load_project(project_name)
+            ensure_schema_v2(script, project)
         versions_info = vm.get_versions(resource_type, resource_id)
 
         return {
@@ -58,6 +64,8 @@ async def get_versions(
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -92,11 +100,25 @@ async def restore_version(
 
         # 确定当前文件路径
         if resource_type == "storyboards":
-            current_file = project_path / "storyboards" / f"scene_{resource_id}.png"
-            file_path = f"storyboards/scene_{resource_id}.png"
+            script_file, script, _ = manager.find_item_reference(project_name, resource_id)
+            project = manager.load_project(project_name)
+            ensure_schema_v2(script, project)
+            _, _, current_file, file_path = manager.get_current_asset_path(
+                project_name,
+                script_file,
+                resource_id,
+                "storyboards",
+            )
         elif resource_type == "videos":
-            current_file = project_path / "videos" / f"scene_{resource_id}.mp4"
-            file_path = f"videos/scene_{resource_id}.mp4"
+            script_file, script, _ = manager.find_item_reference(project_name, resource_id)
+            project = manager.load_project(project_name)
+            ensure_schema_v2(script, project)
+            _, _, current_file, file_path = manager.get_current_asset_path(
+                project_name,
+                script_file,
+                resource_id,
+                "videos",
+            )
         elif resource_type == "characters":
             current_file = project_path / "characters" / f"{resource_id}.png"
             file_path = f"characters/{resource_id}.png"
@@ -128,23 +150,23 @@ async def restore_version(
             except KeyError:
                 pass
         elif resource_type == "storyboards":
-            scripts_dir = project_path / "scripts"
-            if scripts_dir.exists():
-                for script_file in scripts_dir.glob("*.json"):
-                    try:
-                        with project_change_source("webui"):
-                            get_project_manager().update_scene_asset(
-                                project_name=project_name,
-                                script_filename=script_file.name,
-                                scene_id=resource_id,
-                                asset_type="storyboard_image",
-                                asset_path=file_path,
-                            )
-                    except KeyError:
-                        continue
-                    except Exception as exc:
-                        logger.debug("同步分镜元数据失败: %s", exc)
-                        continue
+            with project_change_source("webui"):
+                get_project_manager().update_item_asset(
+                    project_name=project_name,
+                    script_filename=script_file,
+                    item_uid=resource_id,
+                    asset_type="storyboard_image",
+                    asset_path=file_path,
+                )
+        elif resource_type == "videos":
+            with project_change_source("webui"):
+                get_project_manager().update_item_asset(
+                    project_name=project_name,
+                    script_filename=script_file,
+                    item_uid=resource_id,
+                    asset_type="video_clip",
+                    asset_path=file_path,
+                )
 
         return {
             "success": True,
@@ -154,7 +176,11 @@ async def restore_version(
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except MigrationRequiredError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except HTTPException:
         raise

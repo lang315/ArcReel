@@ -1,6 +1,6 @@
 ---
 name: generate-storyboard
-description: 通过生成队列提交分镜图任务。两种模式均由 generation worker 产出分镜图。使用场景：(1) 用户运行 /generate-storyboard 命令，(2) 剧本中有场景没有分镜图，(3) 用户想在视频生成前预览场景。
+description: 通过生成队列提交分镜图任务。使用场景：(1) 用户运行 /generate-storyboard 命令，(2) 剧本中有场景没有分镜图，(3) 用户想在视频生成前预览场景。
 ---
 
 # 生成分镜图
@@ -25,7 +25,7 @@ description: 通过生成队列提交分镜图任务。两种模式均由 genera
 - 使用 character_sheet 和 clue_sheet 作为参考图保持人物一致性
 - 自动将上一张分镜图加入参考图，提升相邻画面连续性
 - 若当前片段 `segment_break=true`，则跳过上一张分镜图参考
-- 保存为 `storyboards/scene_{segment_id}.png`
+- 保存为 `storyboards/item_{item_uid}.png`
 - 更新剧本中的 `storyboard_image` 字段
 - 用于视频生成的起始帧
 
@@ -34,7 +34,7 @@ description: 通过生成队列提交分镜图任务。两种模式均由 genera
 ```json
 {
   "generated_assets": {
-    "storyboard_image": "storyboards/scene_E1S01.png",
+    "storyboard_image": "storyboards/item_itm_xxxxxxxxxxxx.png",
     "video_clip": null,
     "status": "storyboard_ready"
   }
@@ -48,7 +48,7 @@ description: 通过生成队列提交分镜图任务。两种模式均由 genera
 - 使用 character_sheet 和 clue_sheet 作为参考图保持人物一致性
 - 自动将上一张分镜图加入参考图，提升相邻画面连续性
 - 若当前场景 `segment_break=true`，则跳过上一张分镜图参考
-- 保存为 `storyboards/scene_{scene_id}.png`
+- 保存为 `storyboards/item_{item_uid}.png`
 - 更新剧本中的 `storyboard_image` 字段
 - 用于视频生成的起始帧
 
@@ -57,7 +57,7 @@ description: 通过生成队列提交分镜图任务。两种模式均由 genera
 ```json
 {
   "generated_assets": {
-    "storyboard_image": "storyboards/scene_E1S01.png",
+    "storyboard_image": "storyboards/item_itm_xxxxxxxxxxxx.png",
     "video_clip": null,
     "status": "storyboard_ready"
   }

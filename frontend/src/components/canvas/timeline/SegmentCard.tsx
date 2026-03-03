@@ -37,10 +37,14 @@ const TRANSITION_LABELS: Record<TransitionType, string> = {
 
 type Segment = NarrationSegment | DramaScene;
 
-function getSegmentId(segment: Segment, mode: "narration" | "drama"): string {
+function getDisplayId(segment: Segment, mode: "narration" | "drama"): string {
   return mode === "narration"
     ? (segment as NarrationSegment).segment_id
     : (segment as DramaScene).scene_id;
+}
+
+function getItemUid(segment: Segment): string {
+  return segment.item_uid;
 }
 
 function getCharacterNames(
@@ -133,12 +137,12 @@ interface SegmentCardProps {
   clues: Record<string, Clue>;
   projectName: string;
   onUpdatePrompt?: (
-    segmentId: string,
+    itemUid: string,
     field: string,
     value: unknown
   ) => void;
-  onGenerateStoryboard?: (segmentId: string) => void;
-  onGenerateVideo?: (segmentId: string) => void;
+  onGenerateStoryboard?: (itemUid: string) => void;
+  onGenerateVideo?: (itemUid: string) => void;
   onRestoreStoryboard?: () => Promise<void> | void;
   onRestoreVideo?: () => Promise<void> | void;
   generatingStoryboard?: boolean;
@@ -243,13 +247,13 @@ function TextColumn({
 function PromptColumn({
   segment,
   contentMode,
-  segmentId,
+  itemUid,
   onUpdatePrompt,
 }: {
   segment: Segment;
   contentMode: "narration" | "drama";
-  segmentId: string;
-  onUpdatePrompt?: (segmentId: string, field: string, value: unknown) => void;
+  itemUid: string;
+  onUpdatePrompt?: (itemUid: string, field: string, value: unknown) => void;
 }) {
   const { image_prompt, video_prompt } = segment;
 
@@ -274,20 +278,20 @@ function PromptColumn({
   const [vidDraft, setVidDraft] = useState<VideoPrompt | null>(() =>
     isStructuredVideo ? video_prompt : null
   );
-  const prevSegmentIdRef = useRef(segmentId);
+  const prevSegmentIdRef = useRef(itemUid);
 
   useEffect(() => {
-    if (prevSegmentIdRef.current === segmentId) {
+    if (prevSegmentIdRef.current === itemUid) {
       return;
     }
 
-    prevSegmentIdRef.current = segmentId;
+    prevSegmentIdRef.current = itemUid;
     setImgText(promptToStr(image_prompt, "scene"));
     setVidText(promptToStr(video_prompt, "action"));
     setImgDraft(isStructuredImage ? image_prompt : null);
     setVidDraft(isStructuredVideo ? video_prompt : null);
   }, [
-    segmentId,
+    itemUid,
     image_prompt,
     video_prompt,
     isStructuredImage,
@@ -319,7 +323,7 @@ function PromptColumn({
         base as unknown as Record<string, unknown>,
         patch as Record<string, unknown>
       ) as unknown as ImagePrompt;
-      onUpdatePrompt?.(segmentId, "image_prompt", merged);
+      onUpdatePrompt?.(itemUid, "image_prompt", merged);
       return merged;
     });
   };
@@ -334,13 +338,13 @@ function PromptColumn({
         base as unknown as Record<string, unknown>,
         patch as Record<string, unknown>
       ) as unknown as VideoPrompt;
-      onUpdatePrompt?.(segmentId, "video_prompt", merged);
+      onUpdatePrompt?.(itemUid, "video_prompt", merged);
       return merged;
     });
   };
 
   const fireString = (field: string, value: string) => {
-    onUpdatePrompt?.(segmentId, field, value);
+    onUpdatePrompt?.(itemUid, field, value);
   };
 
   return (
@@ -425,7 +429,8 @@ function MediaColumn({
   segment,
   aspectRatio,
   projectName,
-  segmentId,
+  displayId,
+  itemUid,
   onGenerateStoryboard,
   onGenerateVideo,
   onRestoreStoryboard,
@@ -436,9 +441,10 @@ function MediaColumn({
   segment: Segment;
   aspectRatio: string;
   projectName: string;
-  segmentId: string;
-  onGenerateStoryboard?: (segmentId: string) => void;
-  onGenerateVideo?: (segmentId: string) => void;
+  displayId: string;
+  itemUid: string;
+  onGenerateStoryboard?: (itemUid: string) => void;
+  onGenerateVideo?: (itemUid: string) => void;
   onRestoreStoryboard?: () => Promise<void> | void;
   onRestoreVideo?: () => Promise<void> | void;
   generatingStoryboard?: boolean;
@@ -470,15 +476,15 @@ function MediaColumn({
           <VersionTimeMachine
             projectName={projectName}
             resourceType="storyboards"
-            resourceId={segmentId}
+            resourceId={itemUid}
             onRestore={onRestoreStoryboard}
           />
         </div>
-        <PreviewableImageFrame src={storyboardUrl} alt={`${segmentId} 分镜图`}>
+        <PreviewableImageFrame src={storyboardUrl} alt={`${displayId} 分镜图`}>
           <AspectFrame ratio={normalizedRatio}>
             <ImageFlipReveal
               src={storyboardUrl}
-              alt={`${segmentId} 分镜图`}
+              alt={`${displayId} 分镜图`}
               className="h-full w-full object-cover"
               fallback={
                 <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-600">
@@ -491,7 +497,7 @@ function MediaColumn({
         </PreviewableImageFrame>
         <div className="mt-2">
           <GenerateButton
-            onClick={() => onGenerateStoryboard?.(segmentId)}
+            onClick={() => onGenerateStoryboard?.(itemUid)}
             loading={generatingStoryboard}
             label="生成分镜"
             className="w-full justify-center"
@@ -509,7 +515,7 @@ function MediaColumn({
           <VersionTimeMachine
             projectName={projectName}
             resourceType="videos"
-            resourceId={segmentId}
+            resourceId={itemUid}
             onRestore={onRestoreVideo}
           />
         </div>
@@ -526,7 +532,7 @@ function MediaColumn({
         )}
         <div className="mt-2">
           <GenerateButton
-            onClick={() => onGenerateVideo?.(segmentId)}
+            onClick={() => onGenerateVideo?.(itemUid)}
             loading={generatingVideo}
             label="生成视频"
             className="w-full justify-center"
@@ -557,7 +563,8 @@ export function SegmentCard({
   generatingStoryboard = false,
   generatingVideo = false,
 }: SegmentCardProps) {
-  const segmentId = getSegmentId(segment, contentMode);
+  const displayId = getDisplayId(segment, contentMode);
+  const itemUid = getItemUid(segment);
   const charNames = getCharacterNames(segment, contentMode);
 
   return (
@@ -572,7 +579,7 @@ export function SegmentCard({
           {/* Left: ID badge + duration */}
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs bg-gray-800 rounded px-1.5 py-0.5 text-gray-300">
-              {segmentId}
+              {displayId}
             </span>
             <DurationBadge seconds={segment.duration_seconds} />
           </div>
@@ -594,7 +601,7 @@ export function SegmentCard({
           <PromptColumn
             segment={segment}
             contentMode={contentMode}
-            segmentId={segmentId}
+            itemUid={itemUid}
             onUpdatePrompt={onUpdatePrompt}
           />
 
@@ -603,7 +610,8 @@ export function SegmentCard({
             segment={segment}
             aspectRatio={aspectRatio}
             projectName={projectName}
-            segmentId={segmentId}
+            displayId={displayId}
+            itemUid={itemUid}
             onGenerateStoryboard={onGenerateStoryboard}
             onGenerateVideo={onGenerateVideo}
             onRestoreStoryboard={onRestoreStoryboard}

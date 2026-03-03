@@ -20,6 +20,11 @@ from lib.prompt_utils import (
     is_structured_video_prompt,
     video_prompt_to_yaml,
 )
+from lib.script_item_service import (
+    MigrationRequiredError,
+    build_asset_relative_path,
+    ensure_schema_v2,
+)
 from lib.storyboard_sequence import (
     build_previous_storyboard_reference,
     find_storyboard_item,
@@ -195,6 +200,29 @@ def _resolve_script_episode(project_name: str, script_file: str | None) -> int |
     return None
 
 
+def _resolve_script_item_label(
+    project_name: str,
+    script_file: str | None,
+    item_uid: str,
+) -> str:
+    if not script_file:
+        return item_uid
+    try:
+        script = get_project_manager().load_script(project_name, script_file)
+    except Exception:
+        return item_uid
+
+    content_mode = str(script.get("content_mode") or "narration")
+    items = script.get("segments" if content_mode == "narration" else "scenes", [])
+    if not isinstance(items, list):
+        return item_uid
+    display_field = "segment_id" if content_mode == "narration" else "scene_id"
+    for item in items:
+        if str(item.get("item_uid") or "") == item_uid:
+            return str(item.get(display_field) or item_uid)
+    return item_uid
+
+
 def _emit_generation_success_batch(
     *,
     task_type: str,
@@ -204,6 +232,7 @@ def _emit_generation_success_batch(
 ) -> None:
     script_file = str(payload.get("script_file") or "") or None
     episode = _resolve_script_episode(project_name, script_file)
+    item_label = _resolve_script_item_label(project_name, script_file, resource_id)
 
     if task_type == "storyboard":
         changes = [
@@ -211,7 +240,7 @@ def _emit_generation_success_batch(
                 "entity_type": "segment",
                 "action": "storyboard_ready",
                 "entity_id": resource_id,
-                "label": f"分镜「{resource_id}」",
+                "label": f"分镜「{item_label}」",
                 "script_file": script_file,
                 "episode": episode,
                 "focus": None,
@@ -224,7 +253,7 @@ def _emit_generation_success_batch(
                 "entity_type": "segment",
                 "action": "video_ready",
                 "entity_id": resource_id,
-                "label": f"分镜「{resource_id}」",
+                "label": f"分镜「{item_label}」",
                 "script_file": script_file,
                 "episode": episode,
                 "focus": None,
@@ -279,6 +308,7 @@ def execute_storyboard_task(project_name: str, resource_id: str, payload: Dict[s
     project = get_project_manager().load_project(project_name)
     project_path = get_project_manager().get_project_path(project_name)
     script = get_project_manager().load_script(project_name, script_file)
+    ensure_schema_v2(script, project)
     items, id_field, char_field, clue_field = _get_items_from_script(script)
 
     resolved = find_storyboard_item(items, id_field, resource_id)
@@ -316,12 +346,13 @@ def execute_storyboard_task(project_name: str, resource_id: str, payload: Dict[s
         image_size="1K",
     )
 
-    get_project_manager().update_scene_asset(
+    file_path = build_asset_relative_path("storyboards", resource_id)
+    get_project_manager().update_item_asset(
         project_name=project_name,
         script_filename=script_file,
-        scene_id=resource_id,
+        item_uid=resource_id,
         asset_type="storyboard_image",
-        asset_path=f"storyboards/scene_{resource_id}.png",
+        asset_path=file_path,
     )
 
     created_at = generator.versions.get_versions("storyboards", resource_id)["versions"][-1][
@@ -330,7 +361,7 @@ def execute_storyboard_task(project_name: str, resource_id: str, payload: Dict[s
 
     return {
         "version": version,
-        "file_path": f"storyboards/scene_{resource_id}.png",
+        "file_path": file_path,
         "created_at": created_at,
         "resource_type": "storyboards",
         "resource_id": resource_id,
@@ -348,11 +379,18 @@ def execute_video_task(project_name: str, resource_id: str, payload: Dict[str, A
 
     project = get_project_manager().load_project(project_name)
     project_path = get_project_manager().get_project_path(project_name)
+    script = get_project_manager().load_script(project_name, script_file)
+    ensure_schema_v2(script, project)
     generator = get_media_generator(project_name)
 
-    storyboard_file = project_path / "storyboards" / f"scene_{resource_id}.png"
+    _, _, storyboard_file, storyboard_rel_path = get_project_manager().get_current_asset_path(
+        project_name,
+        script_file,
+        resource_id,
+        "storyboards",
+    )
     if not storyboard_file.exists():
-        raise ValueError(f"storyboard not found: scene_{resource_id}.png")
+        raise ValueError(f"storyboard not found: {storyboard_rel_path}")
 
     prompt_text = _normalize_video_prompt(prompt)
     aspect_ratio = get_aspect_ratio(project, "videos")
@@ -367,19 +405,20 @@ def execute_video_task(project_name: str, resource_id: str, payload: Dict[str, A
         duration_seconds=duration_seconds,
     )
 
-    get_project_manager().update_scene_asset(
+    file_path = build_asset_relative_path("videos", resource_id)
+    get_project_manager().update_item_asset(
         project_name=project_name,
         script_filename=script_file,
-        scene_id=resource_id,
+        item_uid=resource_id,
         asset_type="video_clip",
-        asset_path=f"videos/scene_{resource_id}.mp4",
+        asset_path=file_path,
     )
 
     if video_uri:
-        get_project_manager().update_scene_asset(
+        get_project_manager().update_item_asset(
             project_name=project_name,
             script_filename=script_file,
-            scene_id=resource_id,
+            item_uid=resource_id,
             asset_type="video_uri",
             asset_path=video_uri,
         )
@@ -390,7 +429,7 @@ def execute_video_task(project_name: str, resource_id: str, payload: Dict[str, A
 
     return {
         "version": version,
-        "file_path": f"videos/scene_{resource_id}.mp4",
+        "file_path": file_path,
         "created_at": created_at,
         "resource_type": "videos",
         "resource_id": resource_id,

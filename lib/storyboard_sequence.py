@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
+from lib.script_item_service import build_asset_relative_path
+
 
 @dataclass(frozen=True)
 class StoryboardTaskPlan:
@@ -30,13 +32,13 @@ def get_storyboard_items(script: dict) -> Tuple[List[dict], str, str, str]:
     if content_mode == "narration" and "segments" in script:
         return (
             list(script.get("segments", [])),
-            "segment_id",
+            "item_uid",
             "characters_in_segment",
             "clues_in_segment",
         )
     return (
         list(script.get("scenes", [])),
-        "scene_id",
+        "item_uid",
         "characters_in_scene",
         "clues_in_scene",
     )
@@ -72,7 +74,15 @@ def resolve_previous_storyboard_path(
     if not previous_id:
         return None
 
-    previous_path = project_path / "storyboards" / f"scene_{previous_id}.png"
+    assets = previous_item.get("generated_assets")
+    if isinstance(assets, dict):
+        previous_rel = str(assets.get("storyboard_image") or "").strip()
+    else:
+        previous_rel = ""
+    if not previous_rel:
+        previous_rel = build_asset_relative_path("storyboards", previous_id)
+
+    previous_path = project_path / previous_rel
     if previous_path.exists():
         return previous_path
     return None

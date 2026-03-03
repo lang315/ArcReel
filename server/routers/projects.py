@@ -9,7 +9,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Optional, List, Union
+from typing import Any, Optional, List, Union
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
@@ -20,6 +20,14 @@ logger = logging.getLogger(__name__)
 
 from lib import PROJECT_ROOT
 from lib.project_change_hints import project_change_source
+from lib.script_item_service import (
+    BadRequestError,
+    ItemNotFoundError,
+    MigrationRequiredError,
+    OptimisticLockError,
+    ScriptItemService,
+    ScriptValidationError,
+)
 from lib.project_manager import ProjectManager
 from lib.status_calculator import StatusCalculator
 from server.services.project_archive import (
@@ -32,6 +40,7 @@ router = APIRouter()
 # 初始化项目管理器和状态计算器
 pm = ProjectManager(PROJECT_ROOT / "projects")
 calc = StatusCalculator(pm)
+script_item_service = ScriptItemService(pm)
 
 
 def get_project_manager() -> ProjectManager:
@@ -40,6 +49,10 @@ def get_project_manager() -> ProjectManager:
 
 def get_status_calculator() -> StatusCalculator:
     return calc
+
+
+def get_script_item_service() -> ScriptItemService:
+    return script_item_service
 
 
 def get_archive_service() -> ProjectArchiveService:
@@ -150,14 +163,30 @@ async def list_projects():
             # 尝试加载项目元数据
             if manager.project_exists(name):
                 project = manager.load_project(name)
-                # 获取缩略图（第一个分镜图）
-                project_dir = manager.get_project_path(name)
-                storyboards_dir = project_dir / "storyboards"
                 thumbnail = None
-                if storyboards_dir.exists():
-                    scene_images = sorted(storyboards_dir.glob("scene_*.png"))
-                    if scene_images:
-                        thumbnail = f"/api/v1/files/{name}/storyboards/{scene_images[0].name}"
+                for episode_meta in project.get("episodes", []):
+                    script_file = str(episode_meta.get("script_file") or "")
+                    if not script_file:
+                        continue
+                    try:
+                        script = manager.load_script(name, script_file)
+                    except FileNotFoundError:
+                        continue
+                    items = script.get("segments" if script.get("content_mode") == "narration" else "scenes", [])
+                    if not isinstance(items, list):
+                        continue
+                    first_asset = next(
+                        (
+                            str((item.get("generated_assets") or {}).get("storyboard_image") or "")
+                            for item in items
+                            if isinstance(item, dict)
+                            and str((item.get("generated_assets") or {}).get("storyboard_image") or "")
+                        ),
+                        "",
+                    )
+                    if first_asset:
+                        thumbnail = f"/api/v1/files/{name}/{first_asset}"
+                        break
 
                 # 使用 StatusCalculator 计算进度（读时计算）
                 progress = calculator.calculate_project_progress(name)
@@ -333,54 +362,21 @@ async def get_script(name: str, script_file: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-class UpdateSceneRequest(BaseModel):
-    script_file: str
-    updates: dict
+class InsertScriptItemRequest(BaseModel):
+    base_updated_at: str
+    position: str
+    anchor_item_uid: Optional[str] = None
+    item: dict[str, Any]
 
 
-@router.patch("/projects/{name}/scenes/{scene_id}")
-async def update_scene(name: str, scene_id: str, req: UpdateSceneRequest):
-    """更新场景"""
-    try:
-        manager = get_project_manager()
-        script = manager.load_script(name, req.script_file)
-
-        # 找到并更新场景
-        scene_found = False
-        for scene in script.get("scenes", []):
-            if scene.get("scene_id") == scene_id:
-                scene_found = True
-                # 更新允许的字段
-                for key, value in req.updates.items():
-                    if key in ["duration_seconds", "image_prompt", "video_prompt",
-                               "characters_in_scene", "clues_in_scene", "segment_break"]:
-                        if value is None:
-                            continue
-                        scene[key] = value
-                break
-
-        if not scene_found:
-            raise HTTPException(status_code=404, detail=f"场景 '{scene_id}' 不存在")
-
-        with project_change_source("webui"):
-            manager.save_script(name, script, req.script_file)
-        return {"success": True, "scene": scene}
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"剧本不存在")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("请求处理失败")
-        raise HTTPException(status_code=500, detail=str(e))
+class UpdateScriptItemRequest(BaseModel):
+    base_updated_at: str
+    updates: dict[str, Any]
 
 
-class UpdateSegmentRequest(BaseModel):
-    script_file: str
-    duration_seconds: Optional[int] = None
-    segment_break: Optional[bool] = None
-    image_prompt: Optional[Union[dict, str]] = None
-    video_prompt: Optional[Union[dict, str]] = None
-    transition_to_next: Optional[str] = None
+class DeleteScriptItemRequest(BaseModel):
+    base_updated_at: str
+    reason: str = ""
 
 
 class UpdateOverviewRequest(BaseModel):
@@ -390,41 +386,89 @@ class UpdateOverviewRequest(BaseModel):
     world_setting: Optional[str] = None
 
 
-@router.patch("/projects/{name}/segments/{segment_id}")
-async def update_segment(name: str, segment_id: str, req: UpdateSegmentRequest):
-    """更新说书模式片段"""
+@router.post("/projects/{name}/scripts/{script_file}/items")
+async def insert_script_item(name: str, script_file: str, req: InsertScriptItemRequest):
     try:
-        manager = get_project_manager()
-        script = manager.load_script(name, req.script_file)
-
-        # 检查是否为说书模式
-        if script.get('content_mode') != 'narration' and 'segments' not in script:
-            raise HTTPException(status_code=400, detail="该剧本不是说书模式，请使用场景更新接口")
-
-        # 找到并更新片段
-        segment_found = False
-        for segment in script.get("segments", []):
-            if segment.get("segment_id") == segment_id:
-                segment_found = True
-                # 更新字段
-                if req.duration_seconds is not None:
-                    segment["duration_seconds"] = req.duration_seconds
-                if req.segment_break is not None:
-                    segment["segment_break"] = req.segment_break
-                if req.image_prompt is not None:
-                    segment["image_prompt"] = req.image_prompt
-                if req.video_prompt is not None:
-                    segment["video_prompt"] = req.video_prompt
-                if req.transition_to_next is not None:
-                    segment["transition_to_next"] = req.transition_to_next
-                break
-
-        if not segment_found:
-            raise HTTPException(status_code=404, detail=f"片段 '{segment_id}' 不存在")
-
         with project_change_source("webui"):
-            manager.save_script(name, script, req.script_file)
-        return {"success": True, "segment": segment}
+            result = get_script_item_service().insert_item(
+                project_name=name,
+                script_file=script_file,
+                base_updated_at=req.base_updated_at,
+                position=req.position,
+                anchor_item_uid=req.anchor_item_uid,
+                item=req.item,
+            )
+        return result
+    except (BadRequestError, ScriptValidationError) as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+    except (ItemNotFoundError, KeyError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (MigrationRequiredError, OptimisticLockError) as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="剧本不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("请求处理失败")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/projects/{name}/scripts/{script_file}/items/{item_uid}")
+async def update_script_item(
+    name: str,
+    script_file: str,
+    item_uid: str,
+    req: UpdateScriptItemRequest,
+):
+    try:
+        with project_change_source("webui"):
+            result = get_script_item_service().update_item(
+                project_name=name,
+                script_file=script_file,
+                item_uid=item_uid,
+                base_updated_at=req.base_updated_at,
+                updates=req.updates,
+            )
+        return result
+    except (BadRequestError, ScriptValidationError) as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+    except (ItemNotFoundError, KeyError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (MigrationRequiredError, OptimisticLockError) as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="剧本不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("请求处理失败")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/projects/{name}/scripts/{script_file}/items/{item_uid}")
+async def delete_script_item(
+    name: str,
+    script_file: str,
+    item_uid: str,
+    req: DeleteScriptItemRequest,
+):
+    try:
+        with project_change_source("webui"):
+            result = get_script_item_service().delete_item(
+                project_name=name,
+                script_file=script_file,
+                item_uid=item_uid,
+                base_updated_at=req.base_updated_at,
+                reason=req.reason,
+            )
+        return result
+    except (BadRequestError, ScriptValidationError) as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+    except (ItemNotFoundError, KeyError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (MigrationRequiredError, OptimisticLockError) as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"剧本不存在")
     except HTTPException:

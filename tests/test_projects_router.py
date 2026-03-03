@@ -121,9 +121,59 @@ class _FakeCalc:
         return script
 
 
-def _client(monkeypatch, fake_pm, fake_calc):
+class _FakeScriptItemService:
+    def __init__(self):
+        self.calls = []
+
+    def insert_item(self, **kwargs):
+        self.calls.append(("insert", kwargs))
+        if kwargs["position"] == "invalid":
+            raise projects.BadRequestError("invalid position")
+        return {
+            "success": True,
+            "action": "insert",
+            "script_file": kwargs["script_file"],
+            "updated_at": "2026-03-03T00:00:00Z",
+            "created_item_uid": "itm_999999999999",
+            "inserted_display_id": "E1S02",
+            "renumbered_items": ["itm_111111111111", "itm_999999999999"],
+        }
+
+    def update_item(self, **kwargs):
+        self.calls.append(("update", kwargs))
+        if kwargs["item_uid"] == "missing":
+            raise projects.ItemNotFoundError("missing")
+        return {
+            "success": True,
+            "action": "update",
+            "script_file": kwargs["script_file"],
+            "updated_at": "2026-03-03T00:00:00Z",
+            "item_uid": kwargs["item_uid"],
+            "display_id": "E1S01",
+            "media_invalidated": True,
+        }
+
+    def delete_item(self, **kwargs):
+        self.calls.append(("delete", kwargs))
+        return {
+            "success": True,
+            "action": "delete",
+            "script_file": kwargs["script_file"],
+            "updated_at": "2026-03-03T00:00:00Z",
+            "deleted_item_uid": kwargs["item_uid"],
+            "deleted_display_id": "E1S01",
+            "renumbered_items": ["itm_222222222222"],
+        }
+
+
+def _client(monkeypatch, fake_pm, fake_calc, fake_item_service=None):
     monkeypatch.setattr(projects, "get_project_manager", lambda: fake_pm)
     monkeypatch.setattr(projects, "get_status_calculator", lambda: fake_calc)
+    monkeypatch.setattr(
+        projects,
+        "get_script_item_service",
+        lambda: fake_item_service or _FakeScriptItemService(),
+    )
 
     app = FastAPI()
     app.include_router(projects.router, prefix="/api/v1")
@@ -216,50 +266,48 @@ class TestProjectsRouter:
             get_script_missing = client.get("/api/v1/projects/ready/scripts/missing.json")
             assert get_script_missing.status_code == 404
 
-    def test_scene_segment_and_overview_endpoints(self, tmp_path, monkeypatch):
+    def test_script_item_and_overview_endpoints(self, tmp_path, monkeypatch):
         fake_pm = _FakePM(tmp_path)
-        fake_pm.scripts[("ready", "episode_1.json")] = {
-            "content_mode": "drama",
-            "scenes": [{"scene_id": "001", "duration_seconds": 8, "image_prompt": {}, "video_prompt": {}}],
-        }
-        fake_pm.scripts[("ready", "narration.json")] = {
-            "content_mode": "narration",
-            "segments": [{"segment_id": "E1S01", "duration_seconds": 4}],
-        }
-
-        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        fake_item_service = _FakeScriptItemService()
+        client = _client(monkeypatch, fake_pm, _FakeCalc(), fake_item_service=fake_item_service)
 
         with client:
-            patch_scene = client.patch(
-                "/api/v1/projects/ready/scenes/001",
-                json={"script_file": "episode_1.json", "updates": {"duration_seconds": 6, "segment_break": True}},
+            insert_item = client.post(
+                "/api/v1/projects/ready/scripts/episode_1.json/items",
+                json={
+                    "base_updated_at": "2026-03-03T00:00:00Z",
+                    "position": "end",
+                    "item": {"duration_seconds": 4, "novel_text": "x"},
+                },
             )
-            assert patch_scene.status_code == 200
-            assert patch_scene.json()["scene"]["duration_seconds"] == 6
+            assert insert_item.status_code == 200
+            assert insert_item.json()["created_item_uid"] == "itm_999999999999"
 
-            patch_scene_missing = client.patch(
-                "/api/v1/projects/ready/scenes/404",
-                json={"script_file": "episode_1.json", "updates": {}},
+            patch_item = client.patch(
+                "/api/v1/projects/ready/scripts/episode_1.json/items/itm_111111111111",
+                json={
+                    "base_updated_at": "2026-03-03T00:00:00Z",
+                    "updates": {"duration_seconds": 6, "segment_break": True},
+                },
             )
-            assert patch_scene_missing.status_code == 404
+            assert patch_item.status_code == 200
+            assert patch_item.json()["item_uid"] == "itm_111111111111"
+            assert patch_item.json()["media_invalidated"] is True
 
-            patch_segment = client.patch(
-                "/api/v1/projects/ready/segments/E1S01",
-                json={"script_file": "narration.json", "duration_seconds": 8, "segment_break": True},
+            patch_item_missing = client.patch(
+                "/api/v1/projects/ready/scripts/episode_1.json/items/missing",
+                json={"base_updated_at": "2026-03-03T00:00:00Z", "updates": {}},
             )
-            assert patch_segment.status_code == 200
+            assert patch_item_missing.status_code == 404
 
-            not_narration = client.patch(
-                "/api/v1/projects/ready/segments/001",
-                json={"script_file": "episode_1.json", "duration_seconds": 8},
+            delete_item = client.request(
+                "DELETE",
+                "/api/v1/projects/ready/scripts/episode_1.json/items/itm_111111111111",
+                json={"base_updated_at": "2026-03-03T00:00:00Z", "reason": "cleanup"},
             )
-            assert not_narration.status_code == 400
-
-            segment_missing = client.patch(
-                "/api/v1/projects/ready/segments/E9S99",
-                json={"script_file": "narration.json", "duration_seconds": 8},
-            )
-            assert segment_missing.status_code == 404
+            assert delete_item.status_code == 200
+            assert delete_item.json()["deleted_item_uid"] == "itm_111111111111"
+            assert [call[0] for call in fake_item_service.calls] == ["insert", "update", "update", "delete"]
 
             gen_overview_ok = client.post("/api/v1/projects/ready/generate-overview")
             assert gen_overview_ok.status_code == 200

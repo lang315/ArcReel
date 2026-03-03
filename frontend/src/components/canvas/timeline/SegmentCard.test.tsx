@@ -30,6 +30,7 @@ vi.mock("@/components/ui/ImageFlipReveal", () => ({
 
 function makeSegment(overrides: Partial<NarrationSegment> = {}): NarrationSegment {
   return {
+    item_uid: "itm_111111111111",
     segment_id: "SEG-1",
     episode: 1,
     duration_seconds: 4,
@@ -41,8 +42,8 @@ function makeSegment(overrides: Partial<NarrationSegment> = {}): NarrationSegmen
     video_prompt: "镜头缓慢推进",
     transition_to_next: "cut",
     generated_assets: {
-      storyboard_image: "storyboards/SEG-1.png",
-      video_clip: "videos/SEG-1.mp4",
+      storyboard_image: "storyboards/item_itm_111111111111.png",
+      video_clip: "videos/item_itm_111111111111.mp4",
       video_uri: null,
       status: "completed",
     },

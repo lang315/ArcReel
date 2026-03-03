@@ -5,8 +5,8 @@ MediaGenerator 中间层
 调用方只需传入 project_path 和 resource_id，版本管理自动完成。
 
 覆盖的 4 种资源类型：
-- storyboards: 分镜图 (scene_E1S01.png)
-- videos: 视频 (scene_E1S01.mp4)
+- storyboards: 分镜图 (item_itm_xxx.png)
+- videos: 视频 (item_itm_xxx.mp4)
 - characters: 人物设计图 (姜月茴.png)
 - clues: 线索设计图 (玉佩.png)
 """
@@ -17,6 +17,7 @@ from typing import Optional, List, Union, Tuple
 from PIL import Image
 
 from lib.gemini_client import GeminiClient, RateLimiter, ReferenceImageInput
+from lib.script_item_service import build_asset_relative_path
 from lib.version_manager import VersionManager
 from lib.usage_tracker import UsageTracker
 
@@ -32,8 +33,8 @@ class MediaGenerator:
 
     # 资源类型到输出路径模式的映射
     OUTPUT_PATTERNS = {
-        'storyboards': 'storyboards/scene_{resource_id}.png',
-        'videos': 'videos/scene_{resource_id}.mp4',
+        'storyboards': 'storyboards/item_{resource_id}.png',
+        'videos': 'videos/item_{resource_id}.mp4',
         'characters': 'characters/{resource_id}.png',
         'clues': 'clues/{resource_id}.png',
     }
@@ -65,7 +66,7 @@ class MediaGenerator:
 
         Args:
             resource_type: 资源类型 (storyboards, videos, characters, clues)
-            resource_id: 资源 ID (E1S01, 姜月茴, 玉佩)
+            resource_id: 资源 ID (itm_xxx, 姜月茴, 玉佩)
 
         Returns:
             输出文件的绝对路径
@@ -73,8 +74,11 @@ class MediaGenerator:
         if resource_type not in self.OUTPUT_PATTERNS:
             raise ValueError(f"不支持的资源类型: {resource_type}")
 
-        pattern = self.OUTPUT_PATTERNS[resource_type]
-        relative_path = pattern.format(resource_id=resource_id)
+        if resource_type in {"storyboards", "videos"}:
+            relative_path = build_asset_relative_path(resource_type, resource_id)
+        else:
+            pattern = self.OUTPUT_PATTERNS[resource_type]
+            relative_path = pattern.format(resource_id=resource_id)
         output_path = (self.project_path / relative_path).resolve()
         try:
             output_path.relative_to(self.project_path.resolve())

@@ -53,6 +53,13 @@ def _valid_narration_response() -> dict:
     }
 
 
+def _valid_step1_segments_md() -> str:
+    return """| segment_id | novel_text | duration_seconds | segment_break |
+| --- | --- | --- | --- |
+| E1S01 | 原文 | 4 | - |
+"""
+
+
 class _FakeGeminiClient:
     def __init__(self, response_text: str):
         self._response_text = response_text
@@ -78,7 +85,7 @@ class TestScriptGenerator:
                 "style_description": "cinematic",
             },
         )
-        _write(project_path / "drafts" / "episode_1" / "step1_segments.md", "E1S01 | 片段")
+        _write(project_path / "drafts" / "episode_1" / "step1_segments.md", _valid_step1_segments_md())
 
         fake = _FakeGeminiClient(json.dumps(_valid_narration_response(), ensure_ascii=False))
         monkeypatch.setattr("lib.script_generator.GeminiClient", lambda: fake)
@@ -86,7 +93,8 @@ class TestScriptGenerator:
         generator = ScriptGenerator(project_path)
         prompt = generator.build_prompt(1)
 
-        assert "E1S01 | 片段" in prompt
+        assert "E1S01" in prompt
+        assert "原文" in prompt
         assert "姜月茴" in prompt
 
     def test_load_step1_falls_back_when_primary_missing(self, tmp_path, monkeypatch):
@@ -120,15 +128,15 @@ class TestScriptGenerator:
         with pytest.raises(ValueError):
             generator._parse_response("not-json", 1)
 
-    def test_parse_response_validation_error_returns_raw_data(self, tmp_path, monkeypatch):
+    def test_parse_response_validation_error_raises(self, tmp_path, monkeypatch):
         project_path = tmp_path / "demo"
         _write_json(project_path / "project.json", {"title": "项目"})
         fake = _FakeGeminiClient("{}")
         monkeypatch.setattr("lib.script_generator.GeminiClient", lambda: fake)
 
         generator = ScriptGenerator(project_path)
-        parsed = generator._parse_response('{"foo": "bar"}', 1)
-        assert parsed == {"foo": "bar"}
+        with pytest.raises(ValueError):
+            generator._parse_response('{"foo": "bar"}', 1)
 
     def test_generate_writes_script_and_metadata(self, tmp_path, monkeypatch):
         project_path = tmp_path / "demo"
@@ -144,7 +152,7 @@ class TestScriptGenerator:
                 "style_description": "cinematic",
             },
         )
-        _write(project_path / "drafts" / "episode_1" / "step1_segments.md", "E1S01 | 片段")
+        _write(project_path / "drafts" / "episode_1" / "step1_segments.md", _valid_step1_segments_md())
 
         fake = _FakeGeminiClient(json.dumps(_valid_narration_response(), ensure_ascii=False))
         monkeypatch.setattr("lib.script_generator.GeminiClient", lambda: fake)
@@ -154,7 +162,9 @@ class TestScriptGenerator:
 
         payload = json.loads(output.read_text(encoding="utf-8"))
         assert output == project_path / "scripts" / "episode_1.json"
+        assert payload["schema_version"] == 2
         assert payload["episode"] == 1
         assert payload["duration_seconds"] == 4
         assert payload["metadata"]["generator"] == ScriptGenerator.MODEL
         assert "created_at" in payload["metadata"]
+        assert payload["segments"][0]["item_uid"].startswith("itm_")

@@ -42,12 +42,14 @@ class ValidationResult:
 class DataValidator:
     """数据验证器"""
 
+    SCHEMA_VERSION = 2
     VALID_CONTENT_MODES = {"narration", "drama"}
     VALID_DURATIONS = {4, 6, 8}
     VALID_CLUE_TYPES = {"prop", "location"}
     VALID_CLUE_IMPORTANCE = {"major", "minor"}
     VALID_SCENE_TYPES = {"剧情", "空镜"}
     ID_PATTERN = re.compile(r"^E\d+S\d+$")
+    ITEM_UID_PATTERN = re.compile(r"^itm_[0-9a-f]{12}$")
     EXTERNAL_URI_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
     ALLOWED_ROOT_ENTRIES = {
         "project.json",
@@ -61,6 +63,7 @@ class DataValidator:
         "videos",
         "output",
         "versions",
+        "recycle_bin",
     }
 
     def __init__(self, projects_root: Optional[str] = None):
@@ -163,6 +166,9 @@ class DataValidator:
         errors: List[str],
         warnings: List[str],
     ) -> None:
+        if int(project.get("schema_version") or 0) != self.SCHEMA_VERSION:
+            errors.append(f"schema_version 必须为 {self.SCHEMA_VERSION}")
+
         if not project.get("title"):
             errors.append("缺少必填字段: title")
 
@@ -259,6 +265,8 @@ class DataValidator:
         prefix: str,
         assets: Any,
         errors: List[str],
+        *,
+        item_uid: Optional[str] = None,
     ) -> None:
         if assets in (None, ""):
             return
@@ -273,6 +281,12 @@ class DataValidator:
             f"{prefix}.generated_assets.storyboard_image",
             default_dir="storyboards",
         )
+        if item_uid and assets.get("storyboard_image"):
+            expected_storyboard = f"storyboards/item_{item_uid}.png"
+            if str(assets.get("storyboard_image")) != expected_storyboard:
+                errors.append(
+                    f"{prefix}.generated_assets.storyboard_image 必须属于 item_uid '{item_uid}'"
+                )
         self._validate_local_reference(
             project_dir,
             assets.get("video_clip"),
@@ -280,6 +294,12 @@ class DataValidator:
             f"{prefix}.generated_assets.video_clip",
             default_dir="videos",
         )
+        if item_uid and assets.get("video_clip"):
+            expected_video = f"videos/item_{item_uid}.mp4"
+            if str(assets.get("video_clip")) != expected_video:
+                errors.append(
+                    f"{prefix}.generated_assets.video_clip 必须属于 item_uid '{item_uid}'"
+                )
         self._validate_local_reference(
             project_dir,
             assets.get("video_uri"),
@@ -288,10 +308,15 @@ class DataValidator:
             default_dir="videos",
             allow_external=True,
         )
+        for field_name in ("storyboard_image", "video_clip", "video_uri"):
+            value = str(assets.get(field_name) or "")
+            if value.startswith("recycle_bin/"):
+                errors.append(f"{prefix}.generated_assets.{field_name} 不允许引用回收站资源")
 
     def _validate_segments(
         self,
         segments: List[Dict[str, Any]],
+        episode: int,
         project_characters: set[str],
         project_clues: set[str],
         errors: List[str],
@@ -304,8 +329,18 @@ class DataValidator:
             errors.append("segments 数组为空")
             return
 
+        seen_item_uids: set[str] = set()
         for index, segment in enumerate(segments):
             prefix = f"segments[{index}]"
+            item_uid = str(segment.get("item_uid") or "")
+            if not item_uid:
+                errors.append(f"{prefix}: 缺少必填字段 item_uid")
+            elif not self.ITEM_UID_PATTERN.match(item_uid):
+                errors.append(f"{prefix}: item_uid 格式错误 '{item_uid}'")
+            elif item_uid in seen_item_uids:
+                errors.append(f"{prefix}: item_uid 重复 '{item_uid}'")
+            else:
+                seen_item_uids.add(item_uid)
 
             segment_id = segment.get("segment_id")
             if not segment_id:
@@ -314,6 +349,12 @@ class DataValidator:
                 errors.append(
                     f"{prefix}: segment_id 格式错误 '{segment_id}'，应为 E{{n}}S{{nn}}"
                 )
+            else:
+                expected_segment_id = f"E{episode}S{index + 1:02d}"
+                if segment_id != expected_segment_id:
+                    errors.append(
+                        f"{prefix}: segment_id 必须与顺序一致，期望 '{expected_segment_id}' 实际 '{segment_id}'"
+                    )
 
             duration = segment.get("duration_seconds")
             if duration is None:
@@ -361,11 +402,13 @@ class DataValidator:
                     prefix,
                     segment.get("generated_assets"),
                     errors,
+                    item_uid=item_uid or None,
                 )
 
     def _validate_scenes(
         self,
         scenes: List[Dict[str, Any]],
+        episode: int,
         project_characters: set[str],
         project_clues: set[str],
         errors: List[str],
@@ -378,8 +421,18 @@ class DataValidator:
             errors.append("scenes 数组为空")
             return
 
+        seen_item_uids: set[str] = set()
         for index, scene in enumerate(scenes):
             prefix = f"scenes[{index}]"
+            item_uid = str(scene.get("item_uid") or "")
+            if not item_uid:
+                errors.append(f"{prefix}: 缺少必填字段 item_uid")
+            elif not self.ITEM_UID_PATTERN.match(item_uid):
+                errors.append(f"{prefix}: item_uid 格式错误 '{item_uid}'")
+            elif item_uid in seen_item_uids:
+                errors.append(f"{prefix}: item_uid 重复 '{item_uid}'")
+            else:
+                seen_item_uids.add(item_uid)
 
             scene_id = scene.get("scene_id")
             if not scene_id:
@@ -388,6 +441,12 @@ class DataValidator:
                 errors.append(
                     f"{prefix}: scene_id 格式错误 '{scene_id}'，应为 E{{n}}S{{nn}}"
                 )
+            else:
+                expected_scene_id = f"E{episode}S{index + 1:02d}"
+                if scene_id != expected_scene_id:
+                    errors.append(
+                        f"{prefix}: scene_id 必须与顺序一致，期望 '{expected_scene_id}' 实际 '{scene_id}'"
+                    )
 
             scene_type = scene.get("scene_type")
             if not scene_type:
@@ -440,6 +499,7 @@ class DataValidator:
                     prefix,
                     scene.get("generated_assets"),
                     errors,
+                    item_uid=item_uid or None,
                 )
 
     def _validate_episode_payload(
@@ -450,6 +510,9 @@ class DataValidator:
         errors: List[str],
         warnings: List[str],
     ) -> None:
+        if int(episode.get("schema_version") or 0) != self.SCHEMA_VERSION:
+            errors.append(f"script.schema_version 必须为 {self.SCHEMA_VERSION}")
+
         project_characters = set(project.get("characters", {}).keys())
         project_clues = set(project.get("clues", {}).keys())
 
@@ -463,6 +526,11 @@ class DataValidator:
             "content_mode",
             project.get("content_mode", "narration"),
         )
+        if content_mode not in self.VALID_CONTENT_MODES:
+            errors.append(
+                f"content_mode 值无效: '{content_mode}'，必须是 {self.VALID_CONTENT_MODES}"
+            )
+            return
 
         characters_in_episode = episode.get("characters_in_episode")
         if characters_in_episode is not None:
@@ -484,9 +552,12 @@ class DataValidator:
                 default_dir="source",
             )
 
+        episode_number = episode.get("episode") if isinstance(episode.get("episode"), int) else 1
+
         if content_mode == "narration":
             self._validate_segments(
                 episode.get("segments", []),
+                episode_number,
                 project_characters,
                 project_clues,
                 errors,
@@ -496,6 +567,7 @@ class DataValidator:
         else:
             self._validate_scenes(
                 episode.get("scenes", []),
+                episode_number,
                 project_characters,
                 project_clues,
                 errors,
@@ -506,6 +578,79 @@ class DataValidator:
     def validate_episode(self, project_name: str, episode_file: str) -> ValidationResult:
         """验证 episode JSON"""
         return self.validate_episode_file(self.projects_root / project_name, episode_file)
+
+    def _validate_versions_alignment(
+        self,
+        project_dir: Path,
+        project: Dict[str, Any],
+        script: Dict[str, Any],
+        errors: List[str],
+    ) -> None:
+        versions_path = project_dir / "versions" / "versions.json"
+        if not versions_path.exists():
+            return
+        versions = self._load_json(versions_path)
+        if not isinstance(versions, dict):
+            errors.append(f"无法加载版本索引: {versions_path}")
+            return
+
+        active_item_uids: set[str] = set()
+        candidate_scripts: list[Dict[str, Any]] = [script]
+        for episode_meta in project.get("episodes", []):
+            if not isinstance(episode_meta, dict):
+                continue
+            script_file = str(episode_meta.get("script_file") or "")
+            if not script_file:
+                continue
+            resolved_path, error = self._resolve_existing_path(
+                project_dir,
+                script_file,
+                default_dir="scripts",
+            )
+            if error or resolved_path is None:
+                continue
+            loaded_script = self._load_json(project_dir / resolved_path)
+            if isinstance(loaded_script, dict) and loaded_script not in candidate_scripts:
+                candidate_scripts.append(loaded_script)
+
+        for candidate in candidate_scripts:
+            items = candidate.get("segments" if candidate.get("content_mode") == "narration" else "scenes", [])
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if isinstance(item, dict) and item.get("item_uid"):
+                    active_item_uids.add(str(item.get("item_uid")))
+        for resource_type in ("storyboards", "videos"):
+            resource_map = versions.get(resource_type, {})
+            if not isinstance(resource_map, dict):
+                continue
+            for resource_id in resource_map:
+                if resource_id not in active_item_uids:
+                    errors.append(
+                        f"versions.{resource_type} 存在 orphan key: {resource_id}"
+                    )
+
+    def validate_script_payload(
+        self,
+        *,
+        project_dir: Path,
+        project: Dict[str, Any],
+        script: Dict[str, Any],
+        script_file: str | None = None,
+    ) -> ValidationResult:
+        errors: List[str] = []
+        warnings: List[str] = []
+        self._validate_project_payload(project, errors, warnings)
+        self._validate_episode_payload(project_dir, project, script, errors, warnings)
+        self._validate_versions_alignment(project_dir, project, script, errors)
+
+        recycle_manifest = project_dir / "recycle_bin" / "manifest.json"
+        if not recycle_manifest.exists():
+            errors.append("缺少 recycle_bin/manifest.json")
+        elif self._load_json(recycle_manifest) is None:
+            errors.append("无法加载 recycle_bin/manifest.json")
+
+        return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 
     def validate_episode_file(
         self,
@@ -544,8 +689,12 @@ class DataValidator:
                 errors=[f"无法加载剧本文件: {episode_path}"],
             )
 
-        self._validate_episode_payload(project_dir, project, episode, errors, warnings)
-        return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
+        return self.validate_script_payload(
+            project_dir=project_dir,
+            project=project,
+            script=episode,
+            script_file=str(episode_file),
+        )
 
     def validate_project_tree(self, project_dir: str | Path) -> ValidationResult:
         """
@@ -628,17 +777,14 @@ class DataValidator:
                     errors.append(f"无法加载剧本文件: {project_dir / resolved_path}")
                     continue
 
-                episode_errors: List[str] = []
-                episode_warnings: List[str] = []
-                self._validate_episode_payload(
-                    project_dir,
-                    project,
-                    episode,
-                    episode_errors,
-                    episode_warnings,
+                result = self.validate_script_payload(
+                    project_dir=project_dir,
+                    project=project,
+                    script=episode,
+                    script_file=resolved_path,
                 )
-                errors.extend(episode_errors)
-                warnings.extend(episode_warnings)
+                errors.extend(result.errors)
+                warnings.extend(result.warnings)
 
         if project_dir.exists():
             for child in sorted(project_dir.iterdir(), key=lambda item: item.name):

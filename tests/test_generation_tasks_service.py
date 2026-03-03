@@ -13,9 +13,11 @@ class _FakePM:
     def __init__(self, project_path: Path):
         self.project_path = project_path
         self.project = {
+            "schema_version": 2,
             "content_mode": "narration",
             "style": "Anime",
             "style_description": "cinematic",
+            "episodes": [{"episode": 1, "script_file": "scripts/episode_1.json"}],
             "characters": {
                 "Alice": {
                     "character_sheet": "characters/Alice.png",
@@ -25,17 +27,22 @@ class _FakePM:
             "clues": {"玉佩": {"type": "prop", "clue_sheet": "clues/玉佩.png"}},
         }
         self.script = {
+            "schema_version": 2,
+            "episode": 1,
             "content_mode": "narration",
             "segments": [
                 {
+                    "item_uid": "itm_111111111111",
                     "segment_id": "E1S01",
                     "duration_seconds": 4,
                     "segment_break": False,
                     "characters_in_segment": [],
                     "clues_in_segment": [],
                     "image_prompt": "首镜头",
+                    "generated_assets": {"storyboard_image": "storyboards/item_itm_111111111111.png"},
                 },
                 {
+                    "item_uid": "itm_222222222222",
                     "segment_id": "E1S02",
                     "duration_seconds": 4,
                     "segment_break": False,
@@ -52,6 +59,7 @@ class _FakePM:
                 }
                 ,
                 {
+                    "item_uid": "itm_333333333333",
                     "segment_id": "E1S03",
                     "duration_seconds": 4,
                     "segment_break": True,
@@ -72,8 +80,12 @@ class _FakePM:
     def load_script(self, project_name: str, script_file: str):
         return self.script
 
-    def update_scene_asset(self, **kwargs):
+    def update_item_asset(self, **kwargs):
         self.updated_assets.append(kwargs)
+
+    def get_current_asset_path(self, project_name: str, script_file: str, item_uid: str, asset_kind: str):
+        rel_path = f"{asset_kind}/item_{item_uid}.{'png' if asset_kind == 'storyboards' else 'mp4'}"
+        return None, None, self.project_path / rel_path, rel_path
 
     def save_project(self, project_name: str, project: dict):
         self.project = project
@@ -114,7 +126,7 @@ def _prepare_files(tmp_path: Path):
     (project_path / "characters").mkdir(parents=True, exist_ok=True)
     (project_path / "characters" / "refs").mkdir(parents=True, exist_ok=True)
     (project_path / "clues").mkdir(parents=True, exist_ok=True)
-    (project_path / "storyboards" / "scene_E1S01.png").write_bytes(b"png")
+    (project_path / "storyboards" / "item_itm_111111111111.png").write_bytes(b"png")
     (project_path / "characters" / "Alice.png").write_bytes(b"png")
     (project_path / "characters" / "refs" / "Alice-ref.png").write_bytes(b"png")
     (project_path / "clues" / "玉佩.png").write_bytes(b"png")
@@ -128,7 +140,7 @@ class TestGenerationTasks:
         assert generation_tasks.normalize_veo_duration_seconds(9) == "8"
 
         mode_items = generation_tasks._get_items_from_script({"content_mode": "drama", "scenes": []})
-        assert mode_items[1] == "scene_id"
+        assert mode_items[1] == "item_uid"
 
         prompt = generation_tasks._normalize_storyboard_prompt("text", "Anime")
         assert prompt == "text"
@@ -172,7 +184,7 @@ class TestGenerationTasks:
 
         storyboard_result = generation_tasks.execute_storyboard_task(
             "demo",
-            "E1S02",
+            "itm_222222222222",
             {"script_file": "episode_1.json", "prompt": "direct prompt", "extra_reference_images": ["characters/Alice.png"]},
         )
         assert storyboard_result["resource_type"] == "storyboards"
@@ -182,7 +194,7 @@ class TestGenerationTasks:
             project_path / "clues" / "玉佩.png",
             project_path / "characters" / "Alice.png",
             {
-                "image": project_path / "storyboards" / "scene_E1S01.png",
+                "image": project_path / "storyboards" / "item_itm_111111111111.png",
                 "label": PREVIOUS_STORYBOARD_REFERENCE_LABEL,
                 "description": PREVIOUS_STORYBOARD_REFERENCE_DESCRIPTION,
             },
@@ -190,7 +202,7 @@ class TestGenerationTasks:
 
         generation_tasks.execute_storyboard_task(
             "demo",
-            "E1S03",
+            "itm_333333333333",
             {"script_file": "episode_1.json", "prompt": "direct prompt"},
         )
         assert fake_generator.image_calls[1]["reference_images"] == [
@@ -200,7 +212,7 @@ class TestGenerationTasks:
 
         video_result = generation_tasks.execute_video_task(
             "demo",
-            "E1S01",
+            "itm_111111111111",
             {"script_file": "episode_1.json", "prompt": {"action": "跑", "camera_motion": "Static", "dialogue": []}},
         )
         assert video_result["resource_type"] == "videos"
@@ -225,7 +237,7 @@ class TestGenerationTasks:
             {
                 "task_type": "storyboard",
                 "project_name": "demo",
-                "resource_id": "E1S02",
+                "resource_id": "itm_222222222222",
                 "payload": {"script_file": "episode_1.json", "prompt": "text"},
             }
         )
@@ -238,10 +250,10 @@ class TestGenerationTasks:
                     {
                         "entity_type": "segment",
                         "action": "storyboard_ready",
-                        "entity_id": "E1S02",
+                        "entity_id": "itm_222222222222",
                         "label": "分镜「E1S02」",
                         "script_file": "episode_1.json",
-                        "episode": None,
+                        "episode": 1,
                         "focus": None,
                         "important": True,
                     }
@@ -259,15 +271,15 @@ class TestGenerationTasks:
         monkeypatch.setattr(generation_tasks, "get_media_generator", lambda _p: _FakeGenerator())
 
         with pytest.raises(ValueError):
-            generation_tasks.execute_storyboard_task("demo", "E1S01", {"prompt": "x"})
+            generation_tasks.execute_storyboard_task("demo", "itm_111111111111", {"prompt": "x"})
 
         with pytest.raises(ValueError):
-            generation_tasks.execute_video_task("demo", "E1S01", {"script_file": "episode_1.json"})
+            generation_tasks.execute_video_task("demo", "itm_111111111111", {"script_file": "episode_1.json"})
 
-        (project_path / "storyboards" / "scene_E1S01.png").unlink()
+        (project_path / "storyboards" / "item_itm_111111111111.png").unlink()
         with pytest.raises(ValueError):
             generation_tasks.execute_video_task(
-                "demo", "E1S01", {"script_file": "episode_1.json", "prompt": "x"}
+                "demo", "itm_111111111111", {"script_file": "episode_1.json", "prompt": "x"}
             )
 
         with pytest.raises(ValueError):

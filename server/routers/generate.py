@@ -28,6 +28,11 @@ from lib.prompt_utils import (
     is_structured_video_prompt,
     video_prompt_to_yaml,
 )
+from lib.script_item_service import (
+    MigrationRequiredError,
+    build_asset_relative_path,
+    ensure_schema_v2,
+)
 from lib.storyboard_sequence import (
     build_previous_storyboard_reference,
     find_storyboard_item,
@@ -159,9 +164,9 @@ class GenerateClueRequest(BaseModel):
 # ==================== 分镜图生成 ====================
 
 
-@router.post("/projects/{project_name}/generate/storyboard/{segment_id}")
+@router.post("/projects/{project_name}/generate/storyboard/{item_uid}")
 async def generate_storyboard(
-    project_name: str, segment_id: str, req: GenerateStoryboardRequest
+    project_name: str, item_uid: str, req: GenerateStoryboardRequest
 ):
     """
     生成分镜图（首次生成或重新生成）
@@ -179,12 +184,13 @@ async def generate_storyboard(
 
             # 加载剧本获取参考图
             script = get_project_manager().load_script(project_name, req.script_file)
+            ensure_schema_v2(script, project)
             # 查找 segment/scene 获取参考角色和线索
             items, id_field, chars_field, clues_field = get_storyboard_items(script)
-            resolved = find_storyboard_item(items, id_field, segment_id)
+            resolved = find_storyboard_item(items, id_field, item_uid)
             if resolved is None:
                 raise HTTPException(
-                    status_code=404, detail=f"片段/场景 '{segment_id}' 不存在"
+                    status_code=404, detail=f"item_uid '{item_uid}' 不存在"
                 )
             target_item, _ = resolved
 
@@ -211,7 +217,7 @@ async def generate_storyboard(
                 project_path,
                 items,
                 id_field,
-                segment_id,
+                item_uid,
             )
             if previous_storyboard_path is not None:
                 reference_images.append(
@@ -254,32 +260,35 @@ async def generate_storyboard(
             _, new_version = await generator.generate_image_async(
                 prompt=prompt_text,
                 resource_type="storyboards",
-                resource_id=segment_id,
+                resource_id=item_uid,
                 reference_images=reference_images if reference_images else None,
                 aspect_ratio=aspect_ratio,
                 image_size="1K",
             )
 
             # 更新剧本中的 generated_assets
-            get_project_manager().update_scene_asset(
+            file_path = build_asset_relative_path("storyboards", item_uid)
+            get_project_manager().update_item_asset(
                 project_name=project_name,
                 script_filename=req.script_file,
-                scene_id=segment_id,
+                item_uid=item_uid,
                 asset_type="storyboard_image",
-                asset_path=f"storyboards/scene_{segment_id}.png",
+                asset_path=file_path,
             )
 
         return {
             "success": True,
             "version": new_version,
-            "file_path": f"storyboards/scene_{segment_id}.png",
-            "created_at": generator.versions.get_versions("storyboards", segment_id)[
+            "file_path": file_path,
+            "created_at": generator.versions.get_versions("storyboards", item_uid)[
                 "versions"
             ][-1]["created_at"],
         }
 
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except MigrationRequiredError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
@@ -290,8 +299,8 @@ async def generate_storyboard(
 # ==================== 视频生成 ====================
 
 
-@router.post("/projects/{project_name}/generate/video/{segment_id}")
-async def generate_video(project_name: str, segment_id: str, req: GenerateVideoRequest):
+@router.post("/projects/{project_name}/generate/video/{item_uid}")
+async def generate_video(project_name: str, item_uid: str, req: GenerateVideoRequest):
     """
     生成视频（首次生成或重新生成）
 
@@ -305,16 +314,23 @@ async def generate_video(project_name: str, segment_id: str, req: GenerateVideoR
             project = get_project_manager().load_project(project_name)
             project_path = get_project_manager().get_project_path(project_name)
             generator = get_media_generator(project_name)
+            script = get_project_manager().load_script(project_name, req.script_file)
+            ensure_schema_v2(script, project)
 
             # 获取画面比例
             aspect_ratio = get_aspect_ratio(project, "videos")
             duration_seconds = normalize_veo_duration_seconds(req.duration_seconds)
 
             # 检查分镜图是否存在
-            storyboard_file = project_path / "storyboards" / f"scene_{segment_id}.png"
+            _, _, storyboard_file, storyboard_rel_path = get_project_manager().get_current_asset_path(
+                project_name,
+                req.script_file,
+                item_uid,
+                "storyboards",
+            )
             if not storyboard_file.exists():
                 raise HTTPException(
-                    status_code=400, detail=f"请先生成分镜图 scene_{segment_id}.png"
+                    status_code=400, detail=f"请先生成分镜图 {storyboard_rel_path}"
                 )
 
             # 兼容 prompt 旧格式（字符串）与新格式（结构化对象）
@@ -362,27 +378,28 @@ async def generate_video(project_name: str, segment_id: str, req: GenerateVideoR
             _, new_version, _, video_uri = await generator.generate_video_async(
                 prompt=prompt_text,
                 resource_type="videos",
-                resource_id=segment_id,
+                resource_id=item_uid,
                 start_image=storyboard_file,
                 aspect_ratio=aspect_ratio,
                 duration_seconds=duration_seconds,
             )
 
             # 更新剧本中的 generated_assets
-            get_project_manager().update_scene_asset(
+            file_path = build_asset_relative_path("videos", item_uid)
+            get_project_manager().update_item_asset(
                 project_name=project_name,
                 script_filename=req.script_file,
-                scene_id=segment_id,
+                item_uid=item_uid,
                 asset_type="video_clip",
-                asset_path=f"videos/scene_{segment_id}.mp4",
+                asset_path=file_path,
             )
 
             # 保存 video_uri 用于后续扩展
             if video_uri:
-                get_project_manager().update_scene_asset(
+                get_project_manager().update_item_asset(
                     project_name=project_name,
                     script_filename=req.script_file,
-                    scene_id=segment_id,
+                    item_uid=item_uid,
                     asset_type="video_uri",
                     asset_path=video_uri,
                 )
@@ -390,14 +407,16 @@ async def generate_video(project_name: str, segment_id: str, req: GenerateVideoR
         return {
             "success": True,
             "version": new_version,
-            "file_path": f"videos/scene_{segment_id}.mp4",
-            "created_at": generator.versions.get_versions("videos", segment_id)[
+            "file_path": file_path,
+            "created_at": generator.versions.get_versions("videos", item_uid)[
                 "versions"
             ][-1]["created_at"],
         }
 
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except MigrationRequiredError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:

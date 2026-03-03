@@ -432,7 +432,8 @@ class ProjectEventService:
         raw_items = script.get("segments" if content_mode == "narration" else "scenes", [])
         if not isinstance(raw_items, list):
             raw_items = []
-        id_field = "segment_id" if content_mode == "narration" else "scene_id"
+        id_field = "item_uid"
+        display_field = "segment_id" if content_mode == "narration" else "scene_id"
         chars_field = "characters_in_segment" if content_mode == "narration" else "characters_in_scene"
         clues_field = "clues_in_segment" if content_mode == "narration" else "clues_in_scene"
 
@@ -447,6 +448,7 @@ class ProjectEventService:
             if not isinstance(assets, dict):
                 assets = {}
             items[item_id] = {
+                "display_id": str(item.get(display_field) or ""),
                 "duration_seconds": item.get("duration_seconds"),
                 "segment_break": bool(item.get("segment_break")),
                 "characters": sorted(str(name) for name in item.get(chars_field, []) or []),
@@ -732,7 +734,9 @@ class ProjectEventService:
     def _build_script_item_label(item_id: str, script_meta: dict[str, Any]) -> str:
         content_mode = str(script_meta.get("content_mode") or "narration")
         noun = "分镜" if content_mode == "narration" else "场景"
-        return f"{noun}「{item_id}」"
+        item_meta = script_meta.get("items", {}).get(item_id, {})
+        display_id = str(item_meta.get("display_id") or item_id)
+        return f"{noun}「{display_id}」"
 
     def _build_script_item_change(
         self,

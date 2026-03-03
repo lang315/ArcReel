@@ -14,6 +14,8 @@ from server.services.project_archive import (
     ProjectArchiveValidationError,
 )
 
+ITEM_UID = "itm_111111111111"
+
 
 def _write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -32,6 +34,7 @@ def _write_json(path: Path, payload: dict) -> None:
 
 def _build_episode_payload(*, video_uri: str | None = None) -> dict:
     return {
+        "schema_version": 2,
         "episode": 1,
         "title": "第一集",
         "content_mode": "narration",
@@ -44,6 +47,7 @@ def _build_episode_payload(*, video_uri: str | None = None) -> dict:
         },
         "segments": [
             {
+                "item_uid": ITEM_UID,
                 "segment_id": "E1S01",
                 "duration_seconds": 4,
                 "segment_break": False,
@@ -54,8 +58,8 @@ def _build_episode_payload(*, video_uri: str | None = None) -> dict:
                 "video_prompt": "vid",
                 "transition_to_next": "cut",
                 "generated_assets": {
-                    "storyboard_image": "storyboards/scene_E1S01.png",
-                    "video_clip": "videos/scene_E1S01.mp4",
+                    "storyboard_image": f"storyboards/item_{ITEM_UID}.png",
+                    "video_clip": f"videos/item_{ITEM_UID}.mp4",
                     "video_uri": video_uri,
                     "status": "completed",
                 },
@@ -109,10 +113,10 @@ def _create_project(
     _write_bytes(project_dir / "characters" / "Hero.png", b"png")
     _write_bytes(project_dir / "characters" / "refs" / "Hero.png", b"png")
     _write_bytes(project_dir / "clues" / "Key.png", b"png")
-    _write_bytes(project_dir / "storyboards" / "scene_E1S01.png", b"png")
-    _write_bytes(project_dir / "videos" / "scene_E1S01.mp4", b"mp4")
+    _write_bytes(project_dir / "storyboards" / f"item_{ITEM_UID}.png", b"png")
+    _write_bytes(project_dir / "videos" / f"item_{ITEM_UID}.mp4", b"mp4")
     _write_bytes(project_dir / "output" / "final.mp4", b"mp4")
-    _write_bytes(project_dir / "versions" / "storyboards" / "E1S01_v1.png", b"png")
+    _write_bytes(project_dir / "versions" / "storyboards" / f"{ITEM_UID}_v1.png", b"png")
     _write_json(
         project_dir / "scripts" / "episode_1.json",
         _build_episode_payload(video_uri=video_uri),
@@ -155,10 +159,10 @@ class TestProjectArchiveService:
             assert "demo/characters/Hero.png" in names
             assert "demo/characters/refs/Hero.png" in names
             assert "demo/clues/Key.png" in names
-            assert "demo/storyboards/scene_E1S01.png" in names
-            assert "demo/videos/scene_E1S01.mp4" in names
+            assert f"demo/storyboards/item_{ITEM_UID}.png" in names
+            assert f"demo/videos/item_{ITEM_UID}.mp4" in names
             assert "demo/output/final.mp4" in names
-            assert "demo/versions/storyboards/E1S01_v1.png" in names
+            assert f"demo/versions/storyboards/{ITEM_UID}_v1.png" in names
             assert "demo/style_reference.png" in names
             assert "demo/.DS_Store" not in names
             assert "demo/.hidden/secret.txt" not in names
@@ -178,7 +182,7 @@ class TestProjectArchiveService:
 
         assert result.project_name == "demo"
         assert result.conflict_resolution == "none"
-        assert (pm.get_project_path("demo") / "videos" / "scene_E1S01.mp4").exists()
+        assert (pm.get_project_path("demo") / "videos" / f"item_{ITEM_UID}.mp4").exists()
         assert (pm.get_project_path("demo") / "drafts" / "episode_2").is_dir()
 
     def test_import_manual_zip_without_manifest(self, tmp_path):
@@ -235,11 +239,11 @@ class TestProjectArchiveService:
             ("clues[Key].clue_sheet", ("clues", "Key.png")),
             (
                 "segments[0].generated_assets.storyboard_image",
-                ("storyboards", "scene_E1S01.png"),
+                ("storyboards", f"item_{ITEM_UID}.png"),
             ),
             (
                 "segments[0].generated_assets.video_clip",
-                ("videos", "scene_E1S01.mp4"),
+                ("videos", f"item_{ITEM_UID}.mp4"),
             ),
         ],
     )

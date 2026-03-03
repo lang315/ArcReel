@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 from lib.project_manager import ProjectManager
 from server.routers import projects
 
+ITEM_UID = "itm_111111111111"
+
 
 def _write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -48,17 +50,19 @@ def _create_demo_project(pm: ProjectManager) -> None:
     _write_text(project_dir / "source" / "chapter.txt", "source")
     _write_bytes(project_dir / "characters" / "Hero.png", b"png")
     _write_bytes(project_dir / "clues" / "Key.png", b"png")
-    _write_bytes(project_dir / "storyboards" / "scene_E1S01.png", b"png")
-    _write_bytes(project_dir / "videos" / "scene_E1S01.mp4", b"mp4")
+    _write_bytes(project_dir / "storyboards" / f"item_{ITEM_UID}.png", b"png")
+    _write_bytes(project_dir / "videos" / f"item_{ITEM_UID}.mp4", b"mp4")
     _write_json(
         project_dir / "scripts" / "episode_1.json",
         {
+            "schema_version": 2,
             "episode": 1,
             "title": "第一集",
             "content_mode": "narration",
             "novel": {"title": "Demo", "chapter": "第一章", "source_file": "source/chapter.txt"},
             "segments": [
                 {
+                    "item_uid": ITEM_UID,
                     "segment_id": "E1S01",
                     "duration_seconds": 4,
                     "novel_text": "原文",
@@ -67,8 +71,8 @@ def _create_demo_project(pm: ProjectManager) -> None:
                     "image_prompt": "img",
                     "video_prompt": "vid",
                     "generated_assets": {
-                        "storyboard_image": "storyboards/scene_E1S01.png",
-                        "video_clip": "videos/scene_E1S01.mp4",
+                        "storyboard_image": f"storyboards/item_{ITEM_UID}.png",
+                        "video_clip": f"videos/item_{ITEM_UID}.mp4",
                         "video_uri": None,
                         "status": "completed",
                     },

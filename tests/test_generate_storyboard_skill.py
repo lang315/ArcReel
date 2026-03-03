@@ -64,6 +64,7 @@ def test_main_supports_scene_flag(monkeypatch):
 class _FakeQueueProjectManager:
     def __init__(self):
         self.project = {
+            "schema_version": 2,
             "content_mode": "narration",
             "style": "Anime",
             "style_description": "cinematic",
@@ -71,9 +72,11 @@ class _FakeQueueProjectManager:
             "clues": {},
         }
         self.script = {
+            "schema_version": 2,
             "content_mode": "narration",
             "segments": [
                 {
+                    "item_uid": "itm_111111111111",
                     "segment_id": "E1S05",
                     "image_prompt": "雨夜街道",
                     "generated_assets": {},

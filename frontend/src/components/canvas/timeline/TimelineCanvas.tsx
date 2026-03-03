@@ -15,10 +15,8 @@ import type {
 
 type Segment = NarrationSegment | DramaScene;
 
-function getSegmentId(segment: Segment, mode: "narration" | "drama"): string {
-  return mode === "narration"
-    ? (segment as NarrationSegment).segment_id
-    : (segment as DramaScene).scene_id;
+function getItemUid(segment: Segment): string {
+  return segment.item_uid;
 }
 
 // ---------------------------------------------------------------------------
@@ -30,9 +28,9 @@ interface TimelineCanvasProps {
   episodeScript: EpisodeScript | null;
   scriptFile?: string;
   projectData: ProjectData | null;
-  onUpdatePrompt?: (segmentId: string, field: string, value: unknown, scriptFile?: string) => void;
-  onGenerateStoryboard?: (segmentId: string, scriptFile?: string) => void;
-  onGenerateVideo?: (segmentId: string, scriptFile?: string) => void;
+  onUpdatePrompt?: (itemUid: string, field: string, value: unknown, scriptFile?: string) => void;
+  onGenerateStoryboard?: (itemUid: string, scriptFile?: string) => void;
+  onGenerateVideo?: (itemUid: string, scriptFile?: string) => void;
   onRestoreStoryboard?: () => Promise<void> | void;
   onRestoreVideo?: () => Promise<void> | void;
 }
@@ -108,9 +106,9 @@ export function TimelineCanvas({
         {/* ---- Segment cards ---- */}
         <div className="space-y-4">
           {segments.map((segment) => {
-            const segId = getSegmentId(segment, contentMode);
+            const itemUid = getItemUid(segment);
             return (
-              <div id={`segment-${segId}`} key={segId}>
+              <div id={`segment-${itemUid}`} key={itemUid}>
                 <SegmentCard
                   segment={segment}
                   contentMode={contentMode}

@@ -23,6 +23,7 @@ class TestProjectEventService:
                     "content_mode": "narration",
                     "segments": [
                         {
+                            "item_uid": "itm_111111111111",
                             "segment_id": "E1S01",
                             "duration_seconds": 4,
                             "segment_break": False,
@@ -58,7 +59,7 @@ class TestProjectEventService:
         script = pm.load_script("demo", "episode_1.json")
         segment = script["segments"][0]
         segment["image_prompt"] = "new"
-        segment["generated_assets"]["storyboard_image"] = "storyboards/scene_E1S01.png"
+        segment["generated_assets"]["storyboard_image"] = "storyboards/item_itm_111111111111.png"
         segment["generated_assets"]["status"] = "storyboard_ready"
         with project_change_source("filesystem"):
             pm.save_script("demo", script, "episode_1.json")
@@ -70,7 +71,11 @@ class TestProjectEventService:
             change["entity_type"] == "character" and change["action"] == "created"
             for change in changes
         )
-        assert any(change["action"] == "storyboard_ready" for change in changes)
+        assert any(
+            change["action"] == "storyboard_ready"
+            and change["entity_id"] == "itm_111111111111"
+            for change in changes
+        )
         assert any(
             change["entity_type"] == "segment" and change["action"] == "updated"
             for change in changes
@@ -90,6 +95,7 @@ class TestProjectEventService:
                     "content_mode": "narration",
                     "segments": [
                         {
+                            "item_uid": "itm_111111111111",
                             "segment_id": "E1S01",
                             "duration_seconds": 4,
                             "segment_break": False,
@@ -121,6 +127,7 @@ class TestProjectEventService:
         script = pm.load_script("demo", "episode_1.json")
         script["segments"].append(
             {
+                "item_uid": "itm_222222222222",
                 "segment_id": "E1S02",
                 "duration_seconds": 4,
                 "segment_break": False,
@@ -149,7 +156,7 @@ class TestProjectEventService:
         assert any(
             change["entity_type"] == "segment"
             and change["action"] == "created"
-            and change["entity_id"] == "E1S02"
+            and change["entity_id"] == "itm_222222222222"
             for change in changes
         )
 

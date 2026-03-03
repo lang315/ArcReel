@@ -170,8 +170,19 @@ describe("API", () => {
       await API.deleteClue("demo", "Key");
 
       await API.getScript("demo", "episode 1.json");
-      await API.updateScene("demo", "scene-1", "episode_1.json", { x: 1 });
-      await API.updateSegment("demo", "segment-1", { y: 2 });
+      await API.insertScriptItem("demo", "episode_1.json", {
+        base_updated_at: "t1",
+        position: "end",
+        item: { x: 1 },
+      });
+      await API.updateScriptItem("demo", "episode_1.json", "itm-1", {
+        base_updated_at: "t2",
+        updates: { y: 2 },
+      });
+      await API.deleteScriptItem("demo", "episode_1.json", "itm-1", {
+        base_updated_at: "t3",
+        reason: "cleanup",
+      });
 
       await API.listFiles("demo");
       await API.listDrafts("demo");
@@ -229,13 +240,21 @@ describe("API", () => {
       expect(requestSpy).toHaveBeenCalledWith(
         "/projects/demo/scripts/episode%201.json",
       );
-      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/scenes/scene-1", {
-        method: "PATCH",
-        body: JSON.stringify({ script_file: "episode_1.json", updates: { x: 1 } }),
+      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/scripts/episode_1.json/items", {
+        method: "POST",
+        body: JSON.stringify({
+          base_updated_at: "t1",
+          position: "end",
+          item: { x: 1 },
+        }),
       });
-      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/segments/segment-1", {
+      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/scripts/episode_1.json/items/itm-1", {
         method: "PATCH",
-        body: JSON.stringify({ y: 2 }),
+        body: JSON.stringify({ base_updated_at: "t2", updates: { y: 2 } }),
+      });
+      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/scripts/episode_1.json/items/itm-1", {
+        method: "DELETE",
+        body: JSON.stringify({ base_updated_at: "t3", reason: "cleanup" }),
       });
       expect(requestSpy).toHaveBeenCalledWith("/projects/demo/generate/video/seg-1", {
         method: "POST",

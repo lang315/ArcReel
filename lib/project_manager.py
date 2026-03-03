@@ -16,6 +16,12 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 from lib.project_change_hints import emit_project_change_hint
+from lib.script_item_service import (
+    SCHEMA_VERSION,
+    build_asset_relative_path,
+    create_generated_assets,
+    iter_script_items,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +53,8 @@ class ProjectManager:
         "storyboards",
         "videos",
         "output",
+        "versions",
+        "recycle_bin",
     ]
 
     # 项目元数据文件名
@@ -122,6 +130,14 @@ class ProjectManager:
         # 创建所有子目录
         for subdir in self.SUBDIRS:
             (project_dir / subdir).mkdir(parents=True, exist_ok=True)
+        (project_dir / "recycle_bin" / "storyboards").mkdir(parents=True, exist_ok=True)
+        (project_dir / "recycle_bin" / "videos").mkdir(parents=True, exist_ok=True)
+        manifest_path = project_dir / "recycle_bin" / "manifest.json"
+        if not manifest_path.exists():
+            manifest_path.write_text(
+                json.dumps({"entries": []}, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
 
         return project_dir
 
@@ -271,6 +287,7 @@ class ProjectManager:
         metadata.setdefault("created_at", now)
         metadata.setdefault("status", "draft")
         metadata["updated_at"] = now
+        script.setdefault("schema_version", SCHEMA_VERSION)
 
         scenes = script.get("scenes", [])
         if not isinstance(scenes, list):
@@ -448,12 +465,7 @@ class ProjectManager:
         Returns:
             标准的 generated_assets 字典
         """
-        return {
-            "storyboard_image": None,
-            "video_clip": None,
-            "video_uri": None,
-            "status": "pending",
-        }
+        return create_generated_assets()
 
     @staticmethod
     def create_scene_template(
@@ -766,6 +778,97 @@ class ProjectManager:
 
         raise KeyError(f"场景 '{scene_id}' 不存在")
 
+    def update_item_asset(
+        self,
+        project_name: str,
+        script_filename: str,
+        item_uid: str,
+        asset_type: str,
+        asset_path: str,
+    ) -> Dict:
+        script = self.load_script(project_name, script_filename)
+        items = iter_script_items(script)
+
+        for item in items:
+            if str(item.get("item_uid") or "") != str(item_uid):
+                continue
+
+            assets = item.get("generated_assets")
+            if not isinstance(assets, dict):
+                assets = {}
+                item["generated_assets"] = assets
+
+            assets_template = self.create_generated_assets(script.get("content_mode", "narration"))
+            for key, default_value in assets_template.items():
+                if key not in assets:
+                    assets[key] = default_value
+
+            assets[asset_type] = asset_path
+            self.update_scene_status(item)
+            self.save_script(project_name, script, script_filename)
+            return script
+
+        raise KeyError(f"item_uid '{item_uid}' 不存在")
+
+    def get_item_by_uid(
+        self,
+        project_name: str,
+        script_filename: str,
+        item_uid: str,
+    ) -> tuple[Dict, Dict]:
+        script = self.load_script(project_name, script_filename)
+        items = iter_script_items(script)
+        for item in items:
+            if str(item.get("item_uid") or "") == str(item_uid):
+                return script, item
+        raise KeyError(f"item_uid '{item_uid}' 不存在")
+
+    def get_current_asset_path(
+        self,
+        project_name: str,
+        script_filename: str,
+        item_uid: str,
+        resource_type: str,
+    ) -> tuple[Dict, Dict, Path, str]:
+        script, item = self.get_item_by_uid(project_name, script_filename, item_uid)
+        assets = item.get("generated_assets")
+        if not isinstance(assets, dict):
+            assets = {}
+
+        field = "storyboard_image" if resource_type == "storyboards" else "video_clip"
+        relative_path = str(assets.get(field) or "").strip()
+        if not relative_path:
+            relative_path = build_asset_relative_path(resource_type, item_uid)
+        return (
+            script,
+            item,
+            self.get_project_path(project_name) / relative_path,
+            relative_path,
+        )
+
+    def find_item_reference(
+        self,
+        project_name: str,
+        item_uid: str,
+    ) -> tuple[str, Dict, Dict]:
+        project = self.load_project(project_name)
+        candidates = [
+            str(ep.get("script_file") or "")
+            for ep in project.get("episodes", [])
+            if isinstance(ep, dict) and ep.get("script_file")
+        ]
+        if not candidates:
+            candidates = [f"scripts/{name}" for name in self.list_scripts(project_name)]
+
+        for script_file in candidates:
+            try:
+                script, item = self.get_item_by_uid(project_name, script_file, item_uid)
+                resolved_file = script_file.replace("scripts/", "", 1)
+                return resolved_file, script, item
+            except (FileNotFoundError, KeyError):
+                continue
+        raise KeyError(f"item_uid '{item_uid}' 不存在")
+
     def get_pending_scenes(
         self, project_name: str, script_filename: str, asset_type: str
     ) -> List[Dict]:
@@ -883,6 +986,7 @@ class ProjectManager:
             保存的文件路径
         """
         project_file = self._get_project_file_path(project_name)
+        project.setdefault("schema_version", SCHEMA_VERSION)
 
         # 确保 metadata 字段存在
         if "metadata" not in project:
@@ -927,6 +1031,7 @@ class ProjectManager:
         project_title = str(title).strip() if title is not None else ""
 
         project = {
+            "schema_version": SCHEMA_VERSION,
             "title": project_title or project_name,
             "content_mode": content_mode,
             "style": style or "",

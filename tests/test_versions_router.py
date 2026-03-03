@@ -19,7 +19,23 @@ class _FakePM:
     def update_clue_sheet(self, *args):
         self.updated.append(("clue", args))
 
-    def update_scene_asset(self, *args, **kwargs):
+    def load_project(self, project_name):
+        return {"schema_version": 2}
+
+    def find_item_reference(self, project_name, item_uid):
+        return "episode_1.json", {"schema_version": 2, "content_mode": "narration"}, {"item_uid": item_uid}
+
+    def get_current_asset_path(self, project_name, script_filename, item_uid, resource_type):
+        from pathlib import Path
+
+        relative_path = (
+            f"storyboards/item_{item_uid}.png"
+            if resource_type == "storyboards"
+            else f"videos/item_{item_uid}.mp4"
+        )
+        return {}, {}, Path("/tmp") / project_name / relative_path, relative_path
+
+    def update_item_asset(self, *args, **kwargs):
         self.updated.append(("scene", args, kwargs))
 
 
@@ -55,12 +71,18 @@ class _StoryboardSyncPM:
     def get_project_path(self, project_name):
         return self.project_path
 
-    def update_scene_asset(self, project_name, script_filename, scene_id, asset_type, asset_path):
+    def load_project(self, project_name):
+        return {"schema_version": 2}
+
+    def find_item_reference(self, project_name, item_uid):
+        return "c.json", {"schema_version": 2, "content_mode": "narration"}, {"item_uid": item_uid}
+
+    def get_current_asset_path(self, project_name, script_filename, item_uid, resource_type):
+        relative_path = f"storyboards/item_{item_uid}.png"
+        return {}, {}, self.project_path / relative_path, relative_path
+
+    def update_item_asset(self, project_name, script_filename, item_uid, asset_type, asset_path):
         self.update_calls.append(script_filename)
-        if script_filename == "a.json":
-            raise KeyError("missing scene")
-        if script_filename == "b.json":
-            raise RuntimeError("bad script")
 
 
 def _client(monkeypatch):
@@ -117,9 +139,9 @@ class TestVersionsRouter:
         with TestClient(app) as client:
             resp = client.post("/api/v1/projects/demo/versions/storyboards/E1S01/restore/1")
             assert resp.status_code == 200
-            assert resp.json()["file_path"] == "storyboards/scene_E1S01.png"
+            assert resp.json()["file_path"] == "storyboards/item_E1S01.png"
 
-        assert sorted(fake_pm.update_calls) == ["a.json", "b.json", "c.json"]
+        assert fake_pm.update_calls == ["c.json"]
 
     def test_get_versions_unexpected_error_maps_to_500(self, monkeypatch):
         fake_pm = _FakePM()

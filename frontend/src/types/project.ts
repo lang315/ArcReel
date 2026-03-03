@@ -65,6 +65,7 @@ export interface EpisodeMeta {
 }
 
 export interface ProjectData {
+  schema_version?: 2;
   title: string;
   content_mode: "narration" | "drama";
   style: string;

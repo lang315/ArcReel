@@ -49,22 +49,25 @@ export function StudioCanvasRouter() {
 
   // ---- Timeline action callbacks ----
   // These receive scriptFile from TimelineCanvas so they always use the active episode's script.
-  const handleUpdatePrompt = useCallback(async (segmentId: string, field: string, value: unknown, scriptFile?: string) => {
+  const handleUpdatePrompt = useCallback(async (itemUid: string, field: string, value: unknown, scriptFile?: string) => {
     if (!currentProjectName) return;
-    const mode = currentProjectData?.content_mode ?? "narration";
+    const resolvedFile = scriptFile ?? Object.keys(currentScripts ?? {})[0];
+    if (!resolvedFile || !currentScripts) return;
+    const script = currentScripts[resolvedFile];
+    const baseUpdatedAt = script?.metadata?.updated_at;
+    if (!baseUpdatedAt) return;
     try {
-      if (mode === "drama") {
-        await API.updateScene(currentProjectName, segmentId, scriptFile ?? "", { [field]: value });
-      } else {
-        await API.updateSegment(currentProjectName, segmentId, { script_file: scriptFile, [field]: value });
-      }
+      await API.updateScriptItem(currentProjectName, resolvedFile, itemUid, {
+        base_updated_at: baseUpdatedAt,
+        updates: { [field]: value },
+      });
       await refreshProject();
     } catch (err) {
       useAppStore.getState().pushToast(`更新 Prompt 失败: ${(err as Error).message}`, "error");
     }
-  }, [currentProjectName, currentProjectData, refreshProject]);
+  }, [currentProjectName, currentScripts, refreshProject]);
 
-  const handleGenerateStoryboard = useCallback(async (segmentId: string, scriptFile?: string) => {
+  const handleGenerateStoryboard = useCallback(async (itemUid: string, scriptFile?: string) => {
     if (!currentProjectName || !currentScripts) return;
     const resolvedFile = scriptFile ?? Object.keys(currentScripts)[0];
     if (!resolvedFile) return;
@@ -72,20 +75,18 @@ export function StudioCanvasRouter() {
     if (!script) return;
     const segments = ("segments" in script ? script.segments : undefined) ??
                      ("scenes" in script ? script.scenes : undefined) ?? [];
-    const seg = segments.find((s) => {
-      const id = "segment_id" in s ? s.segment_id : (s as { scene_id?: string }).scene_id ?? "";
-      return id === segmentId;
-    });
+    const seg = segments.find((s) => s.item_uid === itemUid);
     const prompt = seg?.image_prompt ?? "";
     try {
-      await API.generateStoryboard(currentProjectName, segmentId, prompt as string | Record<string, unknown>, resolvedFile);
-      useAppStore.getState().pushToast(`已提交分镜 "${segmentId}" 生成任务`, "success");
+      await API.generateStoryboard(currentProjectName, itemUid, prompt as string | Record<string, unknown>, resolvedFile);
+      const displayId = seg && ("segment_id" in seg ? seg.segment_id : seg.scene_id);
+      useAppStore.getState().pushToast(`已提交分镜 "${displayId ?? itemUid}" 生成任务`, "success");
     } catch (err) {
       useAppStore.getState().pushToast(`生成分镜失败: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, currentScripts]);
 
-  const handleGenerateVideo = useCallback(async (segmentId: string, scriptFile?: string) => {
+  const handleGenerateVideo = useCallback(async (itemUid: string, scriptFile?: string) => {
     if (!currentProjectName || !currentScripts) return;
     const resolvedFile = scriptFile ?? Object.keys(currentScripts)[0];
     if (!resolvedFile) return;
@@ -93,15 +94,13 @@ export function StudioCanvasRouter() {
     if (!script) return;
     const segments = ("segments" in script ? script.segments : undefined) ??
                      ("scenes" in script ? script.scenes : undefined) ?? [];
-    const seg = segments.find((s) => {
-      const id = "segment_id" in s ? s.segment_id : (s as { scene_id?: string }).scene_id ?? "";
-      return id === segmentId;
-    });
+    const seg = segments.find((s) => s.item_uid === itemUid);
     const prompt = seg?.video_prompt ?? "";
     const duration = seg?.duration_seconds ?? 4;
     try {
-      await API.generateVideo(currentProjectName, segmentId, prompt as string | Record<string, unknown>, resolvedFile, duration);
-      useAppStore.getState().pushToast(`已提交视频 "${segmentId}" 生成任务`, "success");
+      await API.generateVideo(currentProjectName, itemUid, prompt as string | Record<string, unknown>, resolvedFile, duration);
+      const displayId = seg && ("segment_id" in seg ? seg.segment_id : seg.scene_id);
+      useAppStore.getState().pushToast(`已提交视频 "${displayId ?? itemUid}" 生成任务`, "success");
     } catch (err) {
       useAppStore.getState().pushToast(`生成视频失败: ${(err as Error).message}`, "error");
     }

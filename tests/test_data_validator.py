@@ -11,6 +11,7 @@ def _write_json(path: Path, payload: dict):
 
 def _project_payload(content_mode: str = "narration") -> dict:
     return {
+        "schema_version": 2,
         "title": "Demo",
         "content_mode": content_mode,
         "style": "Anime",
@@ -25,6 +26,10 @@ def _project_payload(content_mode: str = "narration") -> dict:
             }
         },
     }
+
+
+def _write_recycle_manifest(project_dir: Path):
+    _write_json(project_dir / "recycle_bin" / "manifest.json", [])
 
 
 class TestDataValidator:
@@ -44,6 +49,7 @@ class TestDataValidator:
         _write_json(
             project_dir / "project.json",
             {
+                "schema_version": 2,
                 "title": "",
                 "content_mode": "invalid",
                 "style": "",
@@ -69,9 +75,11 @@ class TestDataValidator:
     def test_validate_episode_narration_success_with_warnings(self, tmp_path):
         project_dir = tmp_path / "projects" / "demo"
         _write_json(project_dir / "project.json", _project_payload("narration"))
+        _write_recycle_manifest(project_dir)
         _write_json(
             project_dir / "scripts" / "episode_1.json",
             {
+                "schema_version": 2,
                 "episode": 1,
                 "title": "第一集",
                 "content_mode": "narration",
@@ -79,6 +87,7 @@ class TestDataValidator:
                 "clues_in_episode": ["玉佩"],
                 "segments": [
                     {
+                        "item_uid": "itm_111111111111",
                         "segment_id": "E1S01",
                         "novel_text": "原文",
                         "characters_in_segment": ["姜月茴"],
@@ -102,14 +111,17 @@ class TestDataValidator:
     def test_validate_episode_reports_invalid_references_and_fields(self, tmp_path):
         project_dir = tmp_path / "projects" / "demo"
         _write_json(project_dir / "project.json", _project_payload("narration"))
+        _write_recycle_manifest(project_dir)
         _write_json(
             project_dir / "scripts" / "episode_1.json",
             {
+                "schema_version": 2,
                 "episode": "bad",
                 "title": "",
                 "content_mode": "narration",
                 "segments": [
                     {
+                        "item_uid": "itm_111111111111",
                         "segment_id": "bad-id",
                         "duration_seconds": 5,
                         "novel_text": "",
@@ -136,14 +148,17 @@ class TestDataValidator:
     def test_validate_episode_drama_mode(self, tmp_path):
         project_dir = tmp_path / "projects" / "demo"
         _write_json(project_dir / "project.json", _project_payload("drama"))
+        _write_recycle_manifest(project_dir)
         _write_json(
             project_dir / "scripts" / "episode_2.json",
             {
+                "schema_version": 2,
                 "episode": 2,
                 "title": "第二集",
                 "content_mode": "drama",
                 "scenes": [
                     {
+                        "item_uid": "itm_222222222222",
                         "scene_id": "E2S01",
                         "scene_type": "剧情",
                         "duration_seconds": 8,

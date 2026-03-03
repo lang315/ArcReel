@@ -74,8 +74,8 @@ def _build_generator(tmp_path: Path) -> MediaGenerator:
 class TestMediaGenerator:
     def test_get_output_path_and_invalid_type(self, tmp_path):
         gen = _build_generator(tmp_path)
-        assert gen._get_output_path("storyboards", "E1S01").name == "scene_E1S01.png"
-        assert gen._get_output_path("videos", "E1S01").name == "scene_E1S01.mp4"
+        assert gen._get_output_path("storyboards", "itm_111111111111").name == "item_itm_111111111111.png"
+        assert gen._get_output_path("videos", "itm_111111111111").name == "item_itm_111111111111.mp4"
         assert gen._get_output_path("characters", "Alice").name == "Alice.png"
         with pytest.raises(ValueError):
             gen._get_output_path("bad", "x")
@@ -85,11 +85,11 @@ class TestMediaGenerator:
         output_path, version = gen.generate_image(
             prompt="p",
             resource_type="storyboards",
-            resource_id="E1S01",
+            resource_id="itm_111111111111",
             aspect_ratio="9:16",
         )
 
-        assert output_path.name == "scene_E1S01.png"
+        assert output_path.name == "item_itm_111111111111.png"
         assert version == 1
         assert gen.usage_tracker.started[0]["call_type"] == "image"
         assert gen.usage_tracker.finished[0]["status"] == "success"
@@ -110,10 +110,10 @@ class TestMediaGenerator:
         video_path, version, video_ref, video_uri = gen.generate_video(
             prompt="p",
             resource_type="videos",
-            resource_id="E1S01",
+            resource_id="itm_111111111111",
             duration_seconds="bad",
         )
-        assert video_path.name == "scene_E1S01.mp4"
+        assert video_path.name == "item_itm_111111111111.mp4"
         assert version == 1
         assert video_ref == "video-ref"
         assert video_uri == "video-uri"
@@ -121,9 +121,9 @@ class TestMediaGenerator:
         video_path2, version2, _, _ = await gen.generate_video_async(
             prompt="p",
             resource_type="videos",
-            resource_id="E1S02",
+            resource_id="itm_222222222222",
             duration_seconds="6",
         )
-        assert video_path2.name == "scene_E1S02.mp4"
+        assert video_path2.name == "item_itm_222222222222.mp4"
         assert version2 == 2
         assert gen.usage_tracker.started[-1]["call_type"] == "video"

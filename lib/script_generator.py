@@ -8,7 +8,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from pydantic import ValidationError
 
@@ -21,6 +21,7 @@ from lib.script_models import (
     DramaEpisodeScript,
     NarrationEpisodeScript,
 )
+from lib.script_item_service import SCHEMA_VERSION, create_generated_assets, generate_item_uid
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,8 @@ class ScriptGenerator:
 
         # 5. 解析并验证响应
         script_data = self._parse_response(response_text, episode)
+        self._validate_contract(script_data, episode)
+        script_data = self._assign_v2_fields(script_data)
 
         # 6. 补充元数据
         script_data = self._add_metadata(script_data, episode)
@@ -214,9 +217,153 @@ class ScriptGenerator:
                 validated = DramaEpisodeScript.model_validate(data)
             return validated.model_dump()
         except ValidationError as e:
-            logger.warning("数据验证警告: %s", e)
-            # 返回原始数据，允许部分不符合 schema
-            return data
+            raise ValueError(f"Pydantic 校验失败: {e}") from e
+
+    @staticmethod
+    def _parse_markdown_table(markdown_text: str) -> list[dict[str, str]]:
+        headers: list[str] | None = None
+        rows: list[dict[str, str]] = []
+        for raw_line in markdown_text.splitlines():
+            line = raw_line.strip()
+            if not line.startswith("|"):
+                continue
+            parts = [part.strip() for part in line.strip("|").split("|")]
+            if not parts or all(not part for part in parts):
+                continue
+            if headers is None:
+                headers = parts
+                continue
+            if all(set(part) <= {"-", ":"} for part in parts):
+                continue
+            if len(parts) < len(headers):
+                parts.extend([""] * (len(headers) - len(parts)))
+            rows.append(dict(zip(headers, parts)))
+        return rows
+
+    @staticmethod
+    def _read_duration_seconds(value: Any) -> int:
+        text = str(value or "").strip()
+        digits = "".join(ch for ch in text if ch.isdigit())
+        if not digits:
+            raise ValueError(f"无法解析 duration_seconds: {value}")
+        return int(digits)
+
+    @staticmethod
+    def _read_segment_break(value: Any) -> bool:
+        text = str(value or "").strip().lower()
+        return text not in {"", "-", "否", "false", "0", "no", "n"}
+
+    def _load_scene_manifest(self, episode: int) -> dict[str, Any]:
+        manifest_path = (
+            self.project_path
+            / "drafts"
+            / f"episode_{episode}"
+            / "step2_scene_manifest.json"
+        )
+        if not manifest_path.exists():
+            raise FileNotFoundError(f"未找到 Scene Manifest: {manifest_path}")
+        with open(manifest_path, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    def _extract_narration_contract(self, episode: int) -> list[dict[str, Any]]:
+        rows = self._parse_markdown_table(self._load_step1(episode))
+        contract: list[dict[str, Any]] = []
+        for index, row in enumerate(rows):
+            segment_id = (
+                row.get("segment_id")
+                or row.get("片段ID")
+                or row.get("片段编号")
+                or row.get("片段")
+                or row.get("Segment ID")
+            )
+            novel_text = row.get("novel_text") or row.get("原文") or row.get("文本")
+            duration_raw = row.get("duration_seconds") or row.get("时长")
+            segment_break_raw = row.get("segment_break")
+            if segment_break_raw is None:
+                segment_break_raw = row.get("segment break")
+
+            if not segment_id or novel_text is None or duration_raw is None:
+                raise ValueError(f"step1_segments.md 第 {index + 1} 行缺少必要列")
+
+            contract.append(
+                {
+                    "segment_id": str(segment_id).strip(),
+                    "duration_seconds": self._read_duration_seconds(duration_raw),
+                    "segment_break": self._read_segment_break(segment_break_raw),
+                    "novel_text": str(novel_text),
+                }
+            )
+        if not contract:
+            raise ValueError("step1_segments.md 未解析出任何片段")
+        return contract
+
+    def _extract_drama_contract(self, episode: int) -> list[dict[str, Any]]:
+        manifest = self._load_scene_manifest(episode)
+        scenes = manifest.get("scenes", manifest if isinstance(manifest, list) else [])
+        if not isinstance(scenes, list) or not scenes:
+            raise ValueError("step2_scene_manifest.json 未包含 scenes")
+        contract: list[dict[str, Any]] = []
+        for index, scene in enumerate(scenes):
+            if not isinstance(scene, dict):
+                raise ValueError(f"scene manifest 第 {index + 1} 项格式错误")
+            scene_id = scene.get("scene_id")
+            duration = scene.get("duration_seconds")
+            scene_type = scene.get("scene_type")
+            if not scene_id or duration is None or scene_type is None:
+                raise ValueError(f"scene manifest 第 {index + 1} 项缺少必要字段")
+            contract.append(
+                {
+                    "scene_id": str(scene_id).strip(),
+                    "duration_seconds": int(duration),
+                    "segment_break": bool(scene.get("segment_break")),
+                    "scene_type": str(scene_type),
+                }
+            )
+        return contract
+
+    def _validate_contract(self, script_data: dict[str, Any], episode: int) -> None:
+        if self.content_mode == "narration":
+            contract = self._extract_narration_contract(episode)
+            segments = script_data.get("segments", [])
+            if len(segments) != len(contract):
+                raise ValueError("narration 片段数量与 step1_segments.md 不一致")
+            for index, (segment, expected) in enumerate(zip(segments, contract, strict=True), start=1):
+                actual = {
+                    "segment_id": segment.get("segment_id"),
+                    "duration_seconds": segment.get("duration_seconds"),
+                    "segment_break": segment.get("segment_break"),
+                    "novel_text": segment.get("novel_text"),
+                }
+                if actual != expected:
+                    raise ValueError(f"narration 契约校验失败：第 {index} 个片段不一致")
+        else:
+            contract = self._extract_drama_contract(episode)
+            scenes = script_data.get("scenes", [])
+            if len(scenes) != len(contract):
+                raise ValueError("drama 场景数量与 step2_scene_manifest.json 不一致")
+            for index, (scene, expected) in enumerate(zip(scenes, contract, strict=True), start=1):
+                actual = {
+                    "scene_id": scene.get("scene_id"),
+                    "duration_seconds": scene.get("duration_seconds"),
+                    "segment_break": scene.get("segment_break"),
+                    "scene_type": scene.get("scene_type"),
+                }
+                if actual != expected:
+                    raise ValueError(f"drama 契约校验失败：第 {index} 个场景不一致")
+
+    def _assign_v2_fields(self, script_data: dict[str, Any]) -> dict[str, Any]:
+        result = dict(script_data)
+        result["schema_version"] = SCHEMA_VERSION
+        items_key = "segments" if self.content_mode == "narration" else "scenes"
+        items = result.get(items_key, [])
+        if not isinstance(items, list):
+            return result
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            item["item_uid"] = str(item.get("item_uid") or generate_item_uid())
+            item["generated_assets"] = create_generated_assets()
+        return result
 
     def _add_metadata(self, script_data: dict, episode: int) -> dict:
         """
@@ -232,6 +379,7 @@ class ScriptGenerator:
         # 确保基本字段存在
         script_data.setdefault("episode", episode)
         script_data.setdefault("content_mode", self.content_mode)
+        script_data.setdefault("schema_version", SCHEMA_VERSION)
 
         # 添加小说信息
         if "novel" not in script_data:

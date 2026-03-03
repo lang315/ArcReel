@@ -410,33 +410,57 @@ class API {
     );
   }
 
-  static async updateScene(
+  static async insertScriptItem(
     projectName: string,
-    sceneId: string,
     scriptFile: string,
-    updates: Record<string, unknown>
+    payload: {
+      base_updated_at: string;
+      position: "before" | "after" | "start" | "end";
+      anchor_item_uid?: string;
+      item: Record<string, unknown>;
+    }
   ): Promise<SuccessResponse> {
     return this.request(
-      `/projects/${encodeURIComponent(projectName)}/scenes/${encodeURIComponent(sceneId)}`,
+      `/projects/${encodeURIComponent(projectName)}/scripts/${encodeURIComponent(scriptFile)}/items`,
       {
-        method: "PATCH",
-        body: JSON.stringify({ script_file: scriptFile, updates }),
+        method: "POST",
+        body: JSON.stringify(payload),
       }
     );
   }
 
-  // ==================== 片段管理（说书模式） ====================
-
-  static async updateSegment(
+  static async updateScriptItem(
     projectName: string,
-    segmentId: string,
-    updates: Record<string, unknown>
+    scriptFile: string,
+    itemUid: string,
+    payload: {
+      base_updated_at: string;
+      updates: Record<string, unknown>;
+    }
   ): Promise<SuccessResponse> {
     return this.request(
-      `/projects/${encodeURIComponent(projectName)}/segments/${encodeURIComponent(segmentId)}`,
+      `/projects/${encodeURIComponent(projectName)}/scripts/${encodeURIComponent(scriptFile)}/items/${encodeURIComponent(itemUid)}`,
       {
         method: "PATCH",
-        body: JSON.stringify(updates),
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  static async deleteScriptItem(
+    projectName: string,
+    scriptFile: string,
+    itemUid: string,
+    payload: {
+      base_updated_at: string;
+      reason: string;
+    }
+  ): Promise<SuccessResponse> {
+    return this.request(
+      `/projects/${encodeURIComponent(projectName)}/scripts/${encodeURIComponent(scriptFile)}/items/${encodeURIComponent(itemUid)}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify(payload),
       }
     );
   }
@@ -649,12 +673,12 @@ class API {
    */
   static async generateStoryboard(
     projectName: string,
-    segmentId: string,
+    itemUid: string,
     prompt: string | Record<string, unknown>,
     scriptFile: string
-  ): Promise<{ success: boolean; task_id: string }> {
+  ): Promise<{ success: boolean; version?: number; file_path?: string; created_at?: string }> {
     return this.request(
-      `/projects/${encodeURIComponent(projectName)}/generate/storyboard/${encodeURIComponent(segmentId)}`,
+      `/projects/${encodeURIComponent(projectName)}/generate/storyboard/${encodeURIComponent(itemUid)}`,
       {
         method: "POST",
         body: JSON.stringify({ prompt, script_file: scriptFile }),
@@ -672,13 +696,13 @@ class API {
    */
   static async generateVideo(
     projectName: string,
-    segmentId: string,
+    itemUid: string,
     prompt: string | Record<string, unknown>,
     scriptFile: string,
     durationSeconds: number = 4
-  ): Promise<{ success: boolean; task_id: string }> {
+  ): Promise<{ success: boolean; version?: number; file_path?: string; created_at?: string }> {
     return this.request(
-      `/projects/${encodeURIComponent(projectName)}/generate/video/${encodeURIComponent(segmentId)}`,
+      `/projects/${encodeURIComponent(projectName)}/generate/video/${encodeURIComponent(itemUid)}`,
       {
         method: "POST",
         body: JSON.stringify({

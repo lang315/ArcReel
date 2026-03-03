@@ -4,11 +4,13 @@ script_models.py - 剧本数据模型
 使用 Pydantic 定义剧本的数据结构，用于：
 1. Gemini API 的 response_schema（Structured Outputs）
 2. 输出验证
+3. V2 item_uid / schema_version 约束
 """
 
+import re
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ============ 枚举类型定义 ============
 
@@ -34,6 +36,9 @@ CameraMotion = Literal[
     "Zoom Out",
     "Tracking Shot",
 ]
+
+ITEM_UID_PATTERN = re.compile(r"^itm_[0-9a-f]{12}$")
+DISPLAY_ID_PATTERN = re.compile(r"^E\d+S\d+$")
 
 
 class Dialogue(BaseModel):
@@ -86,6 +91,9 @@ class GeneratedAssets(BaseModel):
 class NarrationSegment(BaseModel):
     """说书模式的片段"""
 
+    item_uid: Optional[str] = Field(
+        default=None, description="稳定主键，格式 itm_<12hex>"
+    )
     segment_id: str = Field(description="片段 ID，格式 E{集}S{序号}")
     episode: int = Field(description="所属剧集")
     duration_seconds: Literal[4, 6, 8] = Field(description="片段时长（秒）")
@@ -104,6 +112,22 @@ class NarrationSegment(BaseModel):
         default_factory=GeneratedAssets, description="生成资源状态"
     )
 
+    @field_validator("item_uid")
+    @classmethod
+    def validate_item_uid(cls, value: Optional[str]) -> Optional[str]:
+        if value in (None, ""):
+            return None
+        if not ITEM_UID_PATTERN.match(value):
+            raise ValueError("item_uid 格式错误，应为 itm_<12hex>")
+        return value
+
+    @field_validator("segment_id")
+    @classmethod
+    def validate_segment_id(cls, value: str) -> str:
+        if not DISPLAY_ID_PATTERN.match(value):
+            raise ValueError("segment_id 格式错误，应为 E{episode}S{index}")
+        return value
+
 
 class NovelInfo(BaseModel):
     """小说来源信息"""
@@ -116,6 +140,7 @@ class NovelInfo(BaseModel):
 class NarrationEpisodeScript(BaseModel):
     """说书模式剧集脚本"""
 
+    schema_version: Literal[2] = Field(default=2, description="脚本 schema 版本")
     episode: int = Field(description="剧集编号")
     title: str = Field(description="剧集标题")
     content_mode: Literal["narration"] = Field(
@@ -135,6 +160,9 @@ class NarrationEpisodeScript(BaseModel):
 class DramaScene(BaseModel):
     """剧集动画模式的场景"""
 
+    item_uid: Optional[str] = Field(
+        default=None, description="稳定主键，格式 itm_<12hex>"
+    )
     scene_id: str = Field(description="场景 ID，格式 E{集}S{序号}")
     duration_seconds: Literal[4, 6, 8] = Field(default=8, description="场景时长（秒）")
     segment_break: bool = Field(default=False, description="是否为场景切换点")
@@ -152,10 +180,27 @@ class DramaScene(BaseModel):
         default_factory=GeneratedAssets, description="生成资源状态"
     )
 
+    @field_validator("item_uid")
+    @classmethod
+    def validate_item_uid(cls, value: Optional[str]) -> Optional[str]:
+        if value in (None, ""):
+            return None
+        if not ITEM_UID_PATTERN.match(value):
+            raise ValueError("item_uid 格式错误，应为 itm_<12hex>")
+        return value
+
+    @field_validator("scene_id")
+    @classmethod
+    def validate_scene_id(cls, value: str) -> str:
+        if not DISPLAY_ID_PATTERN.match(value):
+            raise ValueError("scene_id 格式错误，应为 E{episode}S{index}")
+        return value
+
 
 class DramaEpisodeScript(BaseModel):
     """剧集动画模式剧集脚本"""
 
+    schema_version: Literal[2] = Field(default=2, description="脚本 schema 版本")
     episode: int = Field(description="剧集编号")
     title: str = Field(description="剧集标题")
     content_mode: Literal["drama"] = Field(default="drama", description="内容模式")

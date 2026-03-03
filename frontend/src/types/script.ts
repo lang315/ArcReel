@@ -67,6 +67,7 @@ export interface GeneratedAssets {
 }
 
 export interface NarrationSegment {
+  item_uid: string;
   segment_id: string;
   episode: number;
   duration_seconds: DurationSeconds;
@@ -81,6 +82,7 @@ export interface NarrationSegment {
 }
 
 export interface DramaScene {
+  item_uid: string;
   scene_id: string;
   duration_seconds: DurationSeconds;
   segment_break: boolean;
@@ -100,7 +102,13 @@ export interface NovelInfo {
   source_file: string;
 }
 
+export interface ScriptMetadata {
+  created_at: string;
+  updated_at: string;
+}
+
 export interface NarrationEpisodeScript {
+  schema_version?: 2;
   episode: number;
   title: string;
   content_mode: "narration";
@@ -110,9 +118,11 @@ export interface NarrationEpisodeScript {
   characters_in_episode: string[];
   clues_in_episode: string[];
   segments: NarrationSegment[];
+  metadata?: ScriptMetadata;
 }
 
 export interface DramaEpisodeScript {
+  schema_version?: 2;
   episode: number;
   title: string;
   content_mode: "drama";
@@ -122,6 +132,7 @@ export interface DramaEpisodeScript {
   characters_in_episode: string[];
   clues_in_episode: string[];
   scenes: DramaScene[];
+  metadata?: ScriptMetadata;
 }
 
 export type EpisodeScript = NarrationEpisodeScript | DramaEpisodeScript;

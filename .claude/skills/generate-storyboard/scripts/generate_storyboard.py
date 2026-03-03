@@ -178,7 +178,16 @@ def _select_storyboard_items(
 ) -> List[dict]:
     if segment_ids:
         selected_set = {str(segment_id) for segment_id in segment_ids}
-        return [item for item in items if str(item.get(id_field)) in selected_set]
+        return [
+            item
+            for item in items
+            if {
+                str(item.get(id_field) or ""),
+                str(item.get("segment_id") or ""),
+                str(item.get("scene_id") or ""),
+            }
+            & selected_set
+        ]
 
     return [
         item for item in items
@@ -274,7 +283,7 @@ def _wait_for_storyboard_tasks(
                     raise TaskFailedError(task.get("error_message") or "task failed")
 
                 result = task.get("result") or {}
-                relative_path = result.get("file_path") or f"storyboards/scene_{plan.resource_id}.png"
+                relative_path = result.get("file_path") or f"storyboards/item_{plan.resource_id}.png"
                 output_path = project_dir / relative_path
                 results[plan.resource_id] = output_path
                 print(f"✅ [{index}/{total}] 分镜图生成: {plan.resource_id} 完成")
