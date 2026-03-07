@@ -24,6 +24,7 @@ from server.agent_runtime.turn_grouper import (
     _has_subagent_user_metadata,
     _is_system_injected_user_message,
 )
+from server.agent_runtime.message_utils import extract_plain_user_content
 from server.agent_runtime.turn_schema import normalize_turns
 
 
@@ -131,11 +132,12 @@ class AssistantService:
 
     # ==================== Messages ====================
 
-    async def get_snapshot(self, session_id: str) -> dict[str, Any]:
+    async def get_snapshot(self, session_id: str, *, meta: Optional[SessionMeta] = None) -> dict[str, Any]:
         """Build a normalized v2 snapshot for history and reconnect."""
-        meta = await self.meta_store.get(session_id)
         if meta is None:
-            raise FileNotFoundError(f"session not found: {session_id}")
+            meta = await self.meta_store.get(session_id)
+            if meta is None:
+                raise FileNotFoundError(f"session not found: {session_id}")
 
         status = await self.session_manager.get_status(session_id) or meta.status
 
@@ -169,19 +171,20 @@ class AssistantService:
 
         return snapshot
 
-    async def send_message(self, session_id: str, content: str) -> dict[str, Any]:
+    async def send_message(self, session_id: str, content: str, *, meta: Optional[SessionMeta] = None) -> dict[str, Any]:
         """Send a message to the session."""
         text = content.strip()
         if not text:
             raise ValueError("消息内容不能为空")
 
-        meta = await self.meta_store.get(session_id)
         if meta is None:
-            raise FileNotFoundError(f"session not found: {session_id}")
+            meta = await self.meta_store.get(session_id)
+            if meta is None:
+                raise FileNotFoundError(f"session not found: {session_id}")
 
         logger.info("发送消息到会话 session_id=%s", session_id)
         self._snapshot_cache.pop(session_id, None)
-        await self.session_manager.send_message(session_id, text)
+        await self.session_manager.send_message(session_id, text, meta=meta)
         return {"status": "accepted", "session_id": session_id}
 
     async def answer_user_question(
@@ -189,19 +192,23 @@ class AssistantService:
         session_id: str,
         question_id: str,
         answers: dict[str, str],
+        *,
+        meta: Optional[SessionMeta] = None,
     ) -> dict[str, Any]:
         """Submit answers for a pending AskUserQuestion."""
-        meta = await self.meta_store.get(session_id)
         if meta is None:
-            raise FileNotFoundError(f"session not found: {session_id}")
+            meta = await self.meta_store.get(session_id)
+            if meta is None:
+                raise FileNotFoundError(f"session not found: {session_id}")
         await self.session_manager.answer_user_question(session_id, question_id, answers)
         return {"status": "accepted", "session_id": session_id, "question_id": question_id}
 
-    async def interrupt_session(self, session_id: str) -> dict[str, Any]:
+    async def interrupt_session(self, session_id: str, *, meta: Optional[SessionMeta] = None) -> dict[str, Any]:
         """Interrupt a running session."""
-        meta = await self.meta_store.get(session_id)
         if meta is None:
-            raise FileNotFoundError(f"session not found: {session_id}")
+            meta = await self.meta_store.get(session_id)
+            if meta is None:
+                raise FileNotFoundError(f"session not found: {session_id}")
         session_status = await self.session_manager.interrupt_session(session_id)
         return {
             "status": "accepted",
@@ -211,11 +218,12 @@ class AssistantService:
 
     # ==================== Streaming ====================
 
-    async def stream_events(self, session_id: str) -> AsyncIterator[ServerSentEvent]:
+    async def stream_events(self, session_id: str, *, meta: Optional[SessionMeta] = None) -> AsyncIterator[ServerSentEvent]:
         """Stream SSE events for a session."""
-        meta = await self.meta_store.get(session_id)
         if meta is None:
-            raise FileNotFoundError(f"session not found: {session_id}")
+            meta = await self.meta_store.get(session_id)
+            if meta is None:
+                raise FileNotFoundError(f"session not found: {session_id}")
 
         initial_status = await self.session_manager.get_status(session_id) or meta.status
         if initial_status != "running":
@@ -715,28 +723,7 @@ class AssistantService:
                 return True
         return False
 
-    @staticmethod
-    def _extract_plain_user_content(message: dict[str, Any]) -> Optional[str]:
-        """Extract plain text from a user message payload."""
-        if message.get("type") != "user":
-            return None
-        content = message.get("content")
-        if isinstance(content, str):
-            text = content.strip()
-            return text or None
-        if (
-            isinstance(content, list)
-            and len(content) == 1
-            and isinstance(content[0], dict)
-        ):
-            block = content[0]
-            block_type = block.get("type")
-            if block_type in {"text", None}:
-                text = block.get("text")
-                if isinstance(text, str):
-                    text = text.strip()
-                    return text or None
-        return None
+    _extract_plain_user_content = staticmethod(extract_plain_user_content)
 
     @staticmethod
     def _parse_iso_datetime(value: Any) -> Optional[datetime]:
