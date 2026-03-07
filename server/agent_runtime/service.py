@@ -44,6 +44,7 @@ class AssistantService:
         )
         self._startup_lock = asyncio.Lock()
         self._startup_done = False
+        self._snapshot_cache: dict[str, dict[str, Any]] = {}  # session_id → snapshot
         self.stream_heartbeat_seconds = int(
             os.environ.get("ASSISTANT_STREAM_HEARTBEAT_SECONDS", "20")
         )
@@ -123,6 +124,7 @@ class AssistantService:
                 logger.warning("会话断开清理异常: %s", exc)
             del self.session_manager.sessions[session_id]
 
+        self._snapshot_cache.pop(session_id, None)
         return await self.meta_store.delete(session_id)
 
     # ==================== Messages ====================
@@ -134,15 +136,19 @@ class AssistantService:
             raise FileNotFoundError(f"session not found: {session_id}")
 
         status = await self.session_manager.get_status(session_id) or meta.status
-        # Use _build_projector which correctly replays the buffer in chronological order
-        projector = self._build_projector(meta, session_id)
+
+        # Return cached snapshot for terminal (non-running) sessions
+        if status != "running" and session_id in self._snapshot_cache:
+            return self._snapshot_cache[session_id]
+
+        projector = await self._build_projector(meta, session_id)
 
         pending_questions = []
         if status == "running":
             pending_questions = await self.session_manager.get_pending_questions_snapshot(
                 session_id
             )
-        return await self._with_session_metadata(
+        snapshot = await self._with_session_metadata(
             projector.build_snapshot(
                 session_id=session_id,
                 status=status,
@@ -150,6 +156,12 @@ class AssistantService:
             ),
             session_id=session_id,
         )
+
+        # Cache snapshots for terminal sessions (transcript won't change)
+        if status != "running":
+            self._snapshot_cache[session_id] = snapshot
+
+        return snapshot
 
     async def send_message(self, session_id: str, content: str) -> dict[str, Any]:
         """Send a message to the session."""
@@ -226,7 +238,7 @@ class AssistantService:
             return
 
         status = await self.session_manager.get_status(session_id) or initial_status
-        projector = self._build_projector(meta, session_id, replayed_messages)
+        projector = await self._build_projector(meta, session_id, replayed_messages)
         snapshot_events = await self._emit_running_snapshot(
             session_id, status, projector
         )
@@ -258,7 +270,7 @@ class AssistantService:
         self, meta: SessionMeta, session_id: str, status: SessionStatus
     ) -> list[ServerSentEvent]:
         """Build snapshot + status events for a non-running session."""
-        projector = self._build_projector(meta, session_id)
+        projector = await self._build_projector(meta, session_id)
         snapshot_payload = await self._with_session_metadata(
             projector.build_snapshot(
                 session_id=session_id,
@@ -446,14 +458,16 @@ class AssistantService:
         """Build an SSE event for FastAPI's EventSourceResponse."""
         return ServerSentEvent(event=event, data=data)
 
-    def _build_projector(
+    async def _build_projector(
         self,
         meta: SessionMeta,
         session_id: str,
         replayed_messages: Optional[list[dict[str, Any]]] = None,
     ) -> AssistantStreamProjector:
         """Build projector state from transcript history + in-memory buffer."""
-        history_messages = self.transcript_adapter.read_raw_messages(meta.sdk_session_id)
+        history_messages = await asyncio.to_thread(
+            self.transcript_adapter.read_raw_messages, meta.sdk_session_id
+        )
         projector = AssistantStreamProjector(initial_messages=history_messages)
 
         # UUID set for primary dedup
