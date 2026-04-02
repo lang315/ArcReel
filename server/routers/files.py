@@ -154,12 +154,6 @@ async def upload_file(
             filename = Path(filename).with_suffix(ext).name
 
         target_path = target_dir / filename
-
-        # 防御深度：确保写入路径不逃出项目目录
-        try:
-            target_path.resolve().relative_to(project_dir.resolve())
-        except ValueError:
-            raise HTTPException(status_code=400, detail="文件路径非法，禁止写入项目目录外")
         with open(target_path, "wb") as f:
             f.write(content)
 

@@ -104,23 +104,29 @@ class TestVersionsRouter:
             unsupported = client.post("/api/v1/projects/demo/versions/unknown/Alice/restore/1")
             assert unsupported.status_code == 400
 
-    def test_resolve_resource_path_rejects_traversal(self, tmp_path):
-        """_resolve_resource_path 对含路径穿越的 resource_id 应抛出 400"""
+    def test_resolve_resource_path_rejects_traversal(self):
+        """_resolve_resource_path 对含路径分隔符或 . / .. 的 resource_id 应抛出 400"""
+        from pathlib import Path
+
         from fastapi import HTTPException
 
         from server.routers.versions import _resolve_resource_path
 
-        project_path = tmp_path / "demo"
-        project_path.mkdir()
+        project_path = Path("/dummy")
 
-        # characters 模式 "{id}.png" — ../../evil 直接逃逸项目目录
+        # 含 / 的 resource_id
         with pytest.raises(HTTPException) as exc_info:
             _resolve_resource_path("characters", "../../evil", project_path)
         assert exc_info.value.status_code == 400
 
-        # clues 模式 "{id}.png" — 同样逃逸
+        # 含 \ 的 resource_id
         with pytest.raises(HTTPException) as exc_info:
-            _resolve_resource_path("clues", "../../evil", project_path)
+            _resolve_resource_path("clues", "foo\\bar", project_path)
+        assert exc_info.value.status_code == 400
+
+        # resource_id 为 ..
+        with pytest.raises(HTTPException) as exc_info:
+            _resolve_resource_path("characters", "..", project_path)
         assert exc_info.value.status_code == 400
 
     def test_storyboard_restore_syncs_scripts_with_error_tolerance(self, tmp_path, monkeypatch):

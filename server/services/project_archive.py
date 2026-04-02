@@ -465,8 +465,6 @@ class ProjectArchiveService:
                 if is_root and filename in self._AGENT_RUNTIME_EXCLUDES:
                     continue
                 destination_path = destination_dir / filename
-                if not destination_path.resolve().is_relative_to(target_dir.resolve()):
-                    continue
                 destination_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source_path, destination_path)
 
@@ -579,14 +577,6 @@ class ProjectArchiveService:
                     continue
 
                 script_path = project_dir / script_path_rel
-                if not script_path.resolve().is_relative_to(project_dir.resolve()):
-                    diagnostics.add(
-                        "blocking",
-                        "path_escape",
-                        f"{script_location}: 脚本路径越界: {script_path_rel}",
-                        location=script_location,
-                    )
-                    continue
                 if not script_path.exists():
                     diagnostics.add(
                         "blocking",
@@ -797,8 +787,6 @@ class ProjectArchiveService:
 
         normalized_value = raw_value.strip().replace("\\", "/")
         canonical_path = project_dir / canonical_rel
-        if not canonical_path.resolve().is_relative_to(project_dir.resolve()):
-            return False
         resolved_raw = self._resolve_existing_relative(project_dir, normalized_value)
 
         if canonical_path.exists():
@@ -823,7 +811,6 @@ class ProjectArchiveService:
                 if self._materialize_current_file(
                     project_dir / resolved_raw,
                     canonical_path,
-                    boundary=project_dir,
                 ):
                     payload[field_name] = canonical_rel
                     diagnostics.add(
@@ -846,7 +833,6 @@ class ProjectArchiveService:
                 if self._materialize_current_file(
                     project_dir / version_rel,
                     canonical_path,
-                    boundary=project_dir,
                 ):
                     payload[field_name] = canonical_rel
                     diagnostics.add(
@@ -989,13 +975,9 @@ class ProjectArchiveService:
     def _is_hidden_path(path: Path) -> bool:
         return any(part.startswith(".") or part == "__MACOSX" for part in path.parts)
 
-    def _materialize_current_file(self, source_path: Path, target_path: Path, *, boundary: Path | None = None) -> bool:
+    def _materialize_current_file(self, source_path: Path, target_path: Path) -> bool:
         if not source_path.exists() or source_path.resolve() == target_path.resolve():
             return False
-        if boundary is not None:
-            bound = boundary.resolve()
-            if not source_path.resolve().is_relative_to(bound) or not target_path.resolve().is_relative_to(bound):
-                return False
         target_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_path, target_path)
         return True
