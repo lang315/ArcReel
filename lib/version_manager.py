@@ -144,6 +144,8 @@ class VersionManager:
         """
         if resource_type not in self.RESOURCE_TYPES:
             raise ValueError(f"不支持的资源类型: {resource_type}")
+        if "/" in resource_id or "\\" in resource_id:
+            raise ValueError(f"非法资源 ID: '{resource_id}'")
 
         with self._lock:
             data = self._load_versions()
@@ -290,6 +292,10 @@ class VersionManager:
                 raise ValueError(f"版本不存在: {version}")
 
             target_file = self.project_path / target_version["file"]
+            try:
+                target_file.resolve().relative_to(self.project_path.resolve())
+            except ValueError:
+                raise ValueError(f"版本文件路径非法: {target_version['file']}")
             if not target_file.exists():
                 raise FileNotFoundError(f"版本文件不存在: {target_file}")
 

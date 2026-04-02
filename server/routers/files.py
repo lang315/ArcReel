@@ -39,6 +39,14 @@ ALLOWED_EXTENSIONS = {
 }
 
 
+def _sanitize_filename(raw: str) -> str:
+    """提取文件名最后一段，拒绝空名或 dot-only 名称。"""
+    sanitized = Path(raw).name
+    if not sanitized or sanitized in (".", ".."):
+        raise HTTPException(status_code=400, detail=f"非法文件名: '{raw}'")
+    return sanitized
+
+
 @router.get("/files/{project_name}/{path:path}")
 async def serve_project_file(project_name: str, path: str, request: Request):
     """服务项目内的静态文件（图片/视频）"""
@@ -81,8 +89,16 @@ async def upload_file(
     if upload_type not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"无效的上传类型: {upload_type}")
 
+    # 输入清理：去除路径分隔符，防止路径穿越
+    safe_original_filename = _sanitize_filename(file.filename)
+    if name is not None:
+        safe_name = Path(name).name
+        if not safe_name or safe_name in (".", ".."):
+            raise HTTPException(status_code=400, detail=f"非法名称: '{name}'")
+        name = safe_name
+
     # 检查文件扩展名
-    ext = Path(file.filename).suffix.lower()
+    ext = Path(safe_original_filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS[upload_type]:
         raise HTTPException(
             status_code=400,
@@ -95,36 +111,36 @@ async def upload_file(
         # 确定目标目录
         if upload_type == "source":
             target_dir = project_dir / "source"
-            filename = file.filename
+            filename = safe_original_filename
         elif upload_type == "character":
             target_dir = project_dir / "characters"
             # 统一保存为 PNG，且使用稳定文件名（避免 jpg/png 不一致导致版本还原/引用异常）
             if name:
                 filename = f"{name}.png"
             else:
-                filename = f"{Path(file.filename).stem}.png"
+                filename = f"{Path(safe_original_filename).stem}.png"
         elif upload_type == "character_ref":
             target_dir = project_dir / "characters" / "refs"
             if name:
                 filename = f"{name}.png"
             else:
-                filename = f"{Path(file.filename).stem}.png"
+                filename = f"{Path(safe_original_filename).stem}.png"
         elif upload_type == "clue":
             target_dir = project_dir / "clues"
             if name:
                 filename = f"{name}.png"
             else:
-                filename = f"{Path(file.filename).stem}.png"
+                filename = f"{Path(safe_original_filename).stem}.png"
         elif upload_type == "storyboard":
             # 注意：目录为 storyboards（复数），而不是 storyboard
             target_dir = project_dir / "storyboards"
             if name:
                 filename = f"scene_{name}.png"
             else:
-                filename = f"{Path(file.filename).stem}.png"
+                filename = f"{Path(safe_original_filename).stem}.png"
         else:
             target_dir = project_dir / upload_type
-            filename = file.filename
+            filename = safe_original_filename
 
         target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -132,12 +148,18 @@ async def upload_file(
         content = await file.read()
         if upload_type in ("character", "character_ref", "clue", "storyboard"):
             try:
-                content, ext = normalize_uploaded_image(content, Path(file.filename).suffix.lower())
+                content, ext = normalize_uploaded_image(content, Path(safe_original_filename).suffix.lower())
             except ValueError:
                 raise HTTPException(status_code=400, detail="无效的图片文件，无法解析")
             filename = Path(filename).with_suffix(ext).name
 
         target_path = target_dir / filename
+
+        # 防御深度：确保写入路径不逃出项目目录
+        try:
+            target_path.resolve().relative_to(project_dir.resolve())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="文件路径非法，禁止写入项目目录外")
         with open(target_path, "wb") as f:
             f.write(content)
 

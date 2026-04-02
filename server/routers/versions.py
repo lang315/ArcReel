@@ -51,7 +51,12 @@ def _resolve_resource_path(
         raise HTTPException(status_code=400, detail=f"不支持的资源类型: {resource_type}")
     subdir, name_tpl = pattern
     name = name_tpl.format(id=resource_id)
-    return project_path / subdir / name, f"{subdir}/{name}"
+    result_path = project_path / subdir / name
+    try:
+        result_path.resolve().relative_to(project_path.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"非法资源 ID: '{resource_id}'")
+    return result_path, f"{subdir}/{name}"
 
 
 def _sync_storyboard_metadata(

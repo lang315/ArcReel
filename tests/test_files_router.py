@@ -230,6 +230,48 @@ class TestFilesRouter:
             style_missing_project = client.delete("/api/v1/projects/missing/style-image")
             assert style_missing_project.status_code == 404
 
+    def test_upload_rejects_traversal_filename(self, tmp_path, monkeypatch):
+        """file.filename 包含 ../ 应被拒绝"""
+        client, _ = _client(monkeypatch, tmp_path)
+        with client:
+            resp = client.post(
+                "/api/v1/projects/demo/upload/source",
+                files={"file": ("../../.env", "malicious", "text/plain")},
+            )
+            assert resp.status_code == 400
+
+    def test_upload_strips_directory_from_filename(self, tmp_path, monkeypatch):
+        """目录组件应被去除，只保留文件名"""
+        client, _ = _client(monkeypatch, tmp_path)
+        with client:
+            resp = client.post(
+                "/api/v1/projects/demo/upload/source",
+                files={"file": ("subdir/chapter.txt", "hello", "text/plain")},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["filename"] == "chapter.txt"
+
+    def test_upload_rejects_traversal_name_param(self, tmp_path, monkeypatch):
+        """name 参数为 .. 应被拒绝"""
+        client, _ = _client(monkeypatch, tmp_path)
+        with client:
+            resp = client.post(
+                "/api/v1/projects/demo/upload/character?name=..",
+                files={"file": ("img.jpg", _img_bytes("JPEG"), "image/jpeg")},
+            )
+            assert resp.status_code == 400
+
+    def test_upload_sanitizes_traversal_name_param(self, tmp_path, monkeypatch):
+        """name 含目录组件时应只保留最后一段"""
+        client, _ = _client(monkeypatch, tmp_path)
+        with client:
+            resp = client.post(
+                "/api/v1/projects/demo/upload/character?name=../evil",
+                files={"file": ("img.jpg", _img_bytes("JPEG"), "image/jpeg")},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["filename"].startswith("evil.")
+
     def test_upload_without_name_and_keyerror_tolerance(self, tmp_path, monkeypatch):
         client, _ = _client(monkeypatch, tmp_path)
         with client:

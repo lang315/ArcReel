@@ -82,3 +82,47 @@ class TestVersionManagerMore:
 
         with pytest.raises(ValueError):
             vm.restore_version("characters", "Alice", 99, current)
+
+    def test_add_version_rejects_traversal_resource_id(self, tmp_path):
+        """resource_id 包含路径穿越字符应被拒绝"""
+        vm = VersionManager(tmp_path / "demo")
+        with pytest.raises(ValueError, match="非法资源 ID"):
+            vm.add_version("storyboards", "../../evil", "prompt")
+        with pytest.raises(ValueError, match="非法资源 ID"):
+            vm.add_version("characters", "foo/bar", "prompt")
+        with pytest.raises(ValueError, match="非法资源 ID"):
+            vm.add_version("characters", "foo\\bar", "prompt")
+
+    def test_restore_version_rejects_escaped_file_path(self, tmp_path):
+        """versions.json 中被篡改的 file 路径应被拒绝"""
+        import json
+
+        project = tmp_path / "demo"
+        versions_dir = project / "versions"
+        versions_dir.mkdir(parents=True)
+        versions_file = versions_dir / "versions.json"
+        versions_file.write_text(
+            json.dumps(
+                {
+                    "storyboards": {
+                        "E1S01": {
+                            "current_version": 1,
+                            "versions": [
+                                {
+                                    "version": 1,
+                                    "file": "../../etc/passwd",
+                                    "prompt": "p",
+                                    "created_at": "2025-01-01T00:00:00",
+                                }
+                            ],
+                        }
+                    }
+                }
+            )
+        )
+
+        vm = VersionManager(project)
+        current = project / "storyboards" / "scene_E1S01.png"
+        current.parent.mkdir(parents=True, exist_ok=True)
+        with pytest.raises(ValueError, match="版本文件路径非法"):
+            vm.restore_version("storyboards", "E1S01", 1, current)
