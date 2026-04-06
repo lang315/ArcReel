@@ -263,7 +263,8 @@ class API {
   static async createProject(
     title: string,
     style: string = "",
-    contentMode: string = "narration"
+    contentMode: string = "narration",
+    aspectRatio: string = "9:16",
   ): Promise<{ success: boolean; name: string; project: ProjectData }> {
     return this.request("/projects", {
       method: "POST",
@@ -271,6 +272,7 @@ class API {
         title,
         style,
         content_mode: contentMode,
+        aspect_ratio: aspectRatio,
       }),
     });
   }
@@ -289,8 +291,8 @@ class API {
     name: string,
     updates: Partial<ProjectData>
   ): Promise<{ success: boolean; project: ProjectData }> {
-    if ("content_mode" in updates || "aspect_ratio" in updates) {
-      throw new Error("项目创建后不支持修改 content_mode 或 aspect_ratio");
+    if ("content_mode" in updates) {
+      throw new Error("项目创建后不支持修改 content_mode");
     }
     return this.request(`/projects/${encodeURIComponent(name)}`, {
       method: "PATCH",
