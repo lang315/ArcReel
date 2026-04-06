@@ -95,8 +95,10 @@ export function TimelineCanvas({
 
   // Determine aspect ratio — use project config if available, otherwise defaults
   const aspectRatio =
-    projectData?.aspect_ratio?.storyboard ??
-    (contentMode === "narration" ? "9:16" : "16:9");
+    typeof projectData?.aspect_ratio === "string"
+      ? projectData.aspect_ratio
+      : projectData?.aspect_ratio?.storyboard ??
+        (contentMode === "narration" ? "9:16" : "16:9");
 
   // Pick the correct array (segments for narration, scenes for drama)
   const segments = useMemo<Segment[]>(
