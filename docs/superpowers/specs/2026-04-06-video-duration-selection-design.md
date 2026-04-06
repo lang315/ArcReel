@@ -32,20 +32,30 @@ class ModelInfo:
     capabilities: list[str]
     default: bool = False
     supported_durations: list[int] = field(default_factory=list)  # 新增
+    # 分辨率对时长的约束，仅在有限制时声明
+    # e.g. {"1080p": [8]} 表示 1080p 下只能选 8s，未列出的分辨率用 supported_durations 全集
+    duration_resolution_constraints: dict[str, list[int]] = field(default_factory=dict)  # 新增
 ```
 
-各供应商视频模型示例：
+各供应商视频模型时长声明：
 
-| 供应商 | 模型 | supported_durations |
-|--------|------|---------------------|
-| Gemini (AI Studio/Vertex) | veo-3.1-generate-preview | [4, 6, 8] |
-| Gemini (AI Studio/Vertex) | veo-3.1-lite-generate-preview | [4, 6, 8] |
-| Ark | doubao-seedance-1-5-pro-251215 | 按实际填写 |
-| Ark | doubao-seedance-2-0-260128 | 按实际填写 |
-| Grok | grok-imagine-video | 按实际填写 |
-| OpenAI | sora-2 | 按实际填写 |
+| 供应商 | 模型 | supported_durations | duration_resolution_constraints |
+|--------|------|---------------------|---------------------------------|
+| AI Studio | veo-3.1-generate-preview | [4, 6, 8] | {"1080p": [8]} |
+| AI Studio | veo-3.1-fast-generate-preview | [4, 6, 8] | {"1080p": [8]} |
+| AI Studio | veo-3.1-lite-generate-preview | [4, 6, 8] | {"1080p": [8]} |
+| Vertex AI | veo-3.1-generate-001 | [4, 6, 8] | — |
+| Vertex AI | veo-3.1-fast-generate-001 | [4, 6, 8] | — |
+| 火山方舟 | doubao-seedance-1-5-pro-251215 | [4, 5, 6, 7, 8, 9, 10, 11, 12] | — |
+| 火山方舟 | doubao-seedance-2-0-260128 | [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] | — |
+| 火山方舟 | doubao-seedance-2-0-fast-260128 | [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] | — |
+| Grok | grok-imagine-video | [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] | — |
+| OpenAI | sora-2 | [4, 8, 12] | — |
+| OpenAI | sora-2-pro | [4, 8, 12] | — |
 
 非视频模型保持空列表 `[]`。
+
+前端获取时长选项时，根据当前分辨率过滤：若模型声明了 `duration_resolution_constraints` 且当前分辨率命中，则使用约束列表；否则使用 `supported_durations` 全集。
 
 ### 1.2 自定义供应商 — CustomProviderModel 扩展
 
