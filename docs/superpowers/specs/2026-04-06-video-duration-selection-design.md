@@ -74,10 +74,7 @@ supported_durations: Mapped[str | None] = mapped_column(Text, nullable=True)
 仅在自定义供应商且模型未声明 `supported_durations` 时回退：
 
 ```python
-DEFAULT_DURATIONS_BY_FORMAT = {
-    "openai": [4, 8, 12],
-    "google": [4, 6, 8],
-}
+DEFAULT_DURATIONS_FALLBACK = [4, 8]
 ```
 
 ---
