@@ -1,3 +1,118 @@
+[🇬🇧 English](#english) · [🇨🇳 中文](#chinese)
+
+---
+
+<a name="english"></a>
+
+# Jianying Draft Export Guide
+
+Export video clips already generated in ArcReel — organized by episode — as Jianying (JianYing) draft files. Open them directly in the Jianying desktop app for further editing: adjusting pacing, adding subtitles, transitions, voiceovers, and more.
+
+## Prerequisites
+
+- At least one episode's video clips have been generated in ArcReel
+- **Jianying desktop app** (5.x or 6+) is installed locally
+
+## Steps
+
+### 1. Find the Jianying Draft Directory
+
+You need to know the local path where Jianying stores its drafts before exporting.
+
+**macOS:**
+```
+/Users/<username>/Movies/JianyingPro/User Data/Projects/com.lveditor.draft
+```
+
+**Windows:**
+```
+C:\Users\<username>\AppData\Local\JianyingPro\User Data\Projects\com.lveditor.draft
+```
+
+> **Tip**: You can find the "Draft Path" location in Jianying's settings. If you have changed the default path, use your actual draft directory.
+
+### 2. Initiate the Export in ArcReel
+
+1. Open the target project
+2. Click the **Export** button in the upper-right corner
+3. Select **Export as Jianying Draft**
+
+### 3. Fill in the Export Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| **Episode** | Select the episode to export (a dropdown selector appears for multi-episode projects) |
+| **Jianying Version** | Select **6.0+** (recommended) or **5.x** — must match your locally installed Jianying version |
+| **Draft Directory** | Enter the Jianying draft path found above (remembered automatically after the first entry) |
+
+Click **Export Draft** — the browser will download a ZIP file.
+
+### 4. Extract to the Draft Directory
+
+Extract the downloaded ZIP file into the Jianying draft directory entered above. The extracted structure is as follows:
+
+```
+com.lveditor.draft/
+├── ... (other existing drafts)
+└── {project-name}_Episode{N}/          ← extracted folder
+    ├── draft_info.json        (Jianying 6+) or draft_content.json (5.x)
+    ├── draft_meta_info.json
+    └── assets/
+        ├── segment_S1.mp4
+        ├── segment_S2.mp4
+        └── ...
+```
+
+### 5. Open in Jianying
+
+1. Open (or restart) the Jianying desktop app
+2. Find the newly appeared **{project-name}\_Episode{N}** draft in the "Drafts" list
+3. Double-click to open it and see all video clips on the timeline
+
+## Export Content Description
+
+### Narration Mode
+
+- **Video track**: All generated video clips arranged in order
+- **Subtitle track**: Automatically includes the original novel text for each clip as subtitles (white text with black stroke); style and position can be freely adjusted in Jianying
+
+### Drama Mode
+
+- **Video track**: All generated video clips arranged in scene order
+- No subtitles included (subtitle structure for multi-character dialogue scenes is complex; it is recommended to add them manually in Jianying)
+
+### Canvas Size
+
+Determined automatically based on project settings:
+- Portrait (9:16) → 1080×1920
+- Landscape (16:9) → 1920×1080
+
+If no aspect ratio is set for the project, it is auto-detected from the first video file.
+
+## Frequently Asked Questions
+
+### Cannot see the exported draft in Jianying?
+
+- Confirm the ZIP was extracted to the correct draft directory
+- Confirm the extracted folder is directly inside the draft directory (do not nest it in an extra subfolder)
+- Try restarting Jianying
+
+### Version mismatch — what to do?
+
+The Jianying version selected during export must match your locally installed version:
+- Jianying 6.0 and above → select **6.0+**
+- Jianying 5.x → select **5.x**
+
+If you selected the wrong version, simply re-export and choose the correct version.
+
+### Some video clips are missing?
+
+The export only includes video clips that have been successfully generated. If certain clips have not yet been generated or generation failed, they will not appear in the draft. Go back to ArcReel to generate the missing clips, then re-export.
+
+---
+
+<a name="chinese"></a>
+
 # 剪映草稿导出指南
 
 将 ArcReel 已生成的视频片段按集导出为剪映（JianYing）草稿文件，在剪映桌面版中直接打开并进行二次编辑——调整节奏、添加字幕、转场、配音等。

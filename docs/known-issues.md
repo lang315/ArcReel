@@ -1,3 +1,89 @@
+[🇬🇧 English](#english) · [🇨🇳 中文](#chinese)
+
+---
+
+<a name="english"></a>
+
+# Known Issues
+
+Technical debt identified during multi-provider video generation integration (#98). These do not affect functional correctness and are recorded here for future iterations.
+
+---
+
+## ~~1. UsageRepository cost routing logic leak~~ ✅ Fixed
+
+**Fix:** `CostCalculator.calculate_cost()` uses a unified entry point that routes explicitly by `(call_type, provider)`, with the Repository called only once. Gemini video no longer implicitly falls through.
+
+---
+
+## ~~2. CostCalculator cost structure asymmetry~~ ✅ Fixed
+
+**Fix:** Resolved together with Issue 1. The `calculate_cost()` unified entry point hides the differences in rate dictionary structures across providers.
+
+---
+
+## 3. VideoGenerationRequest parameter bloat
+
+**Location:** `lib/video_backends/base.py` — `VideoGenerationRequest`
+
+**Current state:** Backend-specific fields are mixed into the shared dataclass (`negative_prompt` is Veo-specific, `service_tier`/`seed` are Seedance-specific), relying on the convention "each backend ignores unsupported fields" via comments.
+
+**Assessment:** Only 3 backends with 3 specific fields — the complexity of introducing per-backend config classes is not worth it. Refactor when a 4th backend is added.
+
+---
+
+## ~~4. SystemConfigManager secret block repetition pattern~~ ✅ Fixed
+
+**Fix:** Replaced ~8 identical if/else secret blocks in `_apply_to_env()` with a tuple + loop.
+
+---
+
+## 5. UsageRepository finish_call double DB round-trip
+
+**Location:** `lib/db/repositories/usage_repo.py` — `finish_call()`
+
+**Current state:** First does a `SELECT` to read the full row (to get `provider`, `call_type`, etc. for cost calculation), then does an `UPDATE` to write results back. Two serial database round-trips per task.
+
+**Assessment:** Video generation takes minutes — DB round-trip impact is negligible. Eliminating this requires modifying 3 callers (MediaGenerator, TextGenerator, UsageTracker), which is disproportionate risk.
+
+---
+
+## 6. UsageRepository.finish_call() parameter bloat
+
+**Location:** `lib/db/repositories/usage_repo.py` — `finish_call()`, `lib/usage_tracker.py` — `finish_call()`
+
+**Current state:** `finish_call()` already has 9 keyword parameters, and `UsageTracker.finish_call()` mirrors them 1:1 by pass-through.
+
+**Assessment:** Coupled with Issue 5; low benefit to fix independently. Refactor together with Issue 5.
+
+---
+
+## ~~7. call_type bare string lacks type constraints~~ ✅ Fixed
+
+**Fix:** Python side defines `CallType = Literal["image", "video", "text"]` (`lib/providers.py`); frontend defines the corresponding `CallType` type (`frontend/src/types/provider.ts`); unified in interface signatures.
+
+---
+
+## ~~8. UsageRepository query method filter construction repetition~~ ✅ Fixed
+
+**Fix:** Promoted `_base_filters()` to a class method `_build_filters()`, shared by the three query methods.
+
+---
+
+## ~~9. update_project backend field missing provider validity check~~ ✅ Fixed
+
+**Fix:** Extracted shared validation function `validate_backend_value()` (`server/routers/_validators.py`), used by both `update_project()` and `patch_system_config()` to reject invalid provider/model values and return 400.
+
+---
+
+## ~~10. test_text_backends test file asyncio.to_thread patch repetition~~ ✅ Fixed
+
+**Fix:** Extracted `sync_to_thread` fixture in `tests/test_text_backends/conftest.py`, shared across test files.
+
+---
+
+<a name="chinese"></a>
+
 # 已知问题
 
 多供应商视频生成接入（#98）过程中发现的存量技术债，不影响功能正确性，记录以便后续迭代。
