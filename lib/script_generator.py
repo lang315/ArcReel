@@ -12,6 +12,7 @@ from typing import Optional
 
 from pydantic import ValidationError
 
+from lib.config.registry import PROVIDER_REGISTRY
 from lib.prompt_builders_script import (
     build_drama_prompt,
     build_narration_prompt,
@@ -89,7 +90,7 @@ class ScriptGenerator:
                 characters=characters,
                 clues=clues,
                 segments_md=step1_md,
-                supported_durations=self.project_json.get("_supported_durations"),
+                supported_durations=self._resolve_supported_durations(),
                 default_duration=self.project_json.get("default_duration"),
                 aspect_ratio=self._resolve_aspect_ratio(),
             )
@@ -102,7 +103,7 @@ class ScriptGenerator:
                 characters=characters,
                 clues=clues,
                 scenes_md=step1_md,
-                supported_durations=self.project_json.get("_supported_durations"),
+                supported_durations=self._resolve_supported_durations(),
                 default_duration=self.project_json.get("default_duration"),
                 aspect_ratio=self._resolve_aspect_ratio(),
             )
@@ -156,7 +157,7 @@ class ScriptGenerator:
                 characters=characters,
                 clues=clues,
                 segments_md=step1_md,
-                supported_durations=self.project_json.get("_supported_durations"),
+                supported_durations=self._resolve_supported_durations(),
                 default_duration=self.project_json.get("default_duration"),
                 aspect_ratio=self._resolve_aspect_ratio(),
             )
@@ -168,10 +169,25 @@ class ScriptGenerator:
                 characters=characters,
                 clues=clues,
                 scenes_md=step1_md,
-                supported_durations=self.project_json.get("_supported_durations"),
+                supported_durations=self._resolve_supported_durations(),
                 default_duration=self.project_json.get("default_duration"),
                 aspect_ratio=self._resolve_aspect_ratio(),
             )
+
+    def _resolve_supported_durations(self) -> list[int] | None:
+        """从项目配置或 registry 解析当前视频模型支持的时长列表。"""
+        durations = self.project_json.get("_supported_durations")
+        if durations and isinstance(durations, list):
+            return durations
+        video_backend = self.project_json.get("video_backend")
+        if video_backend and isinstance(video_backend, str) and "/" in video_backend:
+            provider_id, model_id = video_backend.split("/", 1)
+            provider_meta = PROVIDER_REGISTRY.get(provider_id)
+            if provider_meta:
+                model_info = provider_meta.models.get(model_id)
+                if model_info and model_info.supported_durations:
+                    return list(model_info.supported_durations)
+        return None
 
     def _resolve_aspect_ratio(self) -> str:
         """解析项目的 aspect_ratio，向后兼容。"""

@@ -102,10 +102,23 @@ DEFAULT_DURATIONS_FALLBACK = [4, 8]
 
 
 def get_supported_durations(project: dict) -> list[int]:
-    """从项目配置获取当前视频模型支持的时长列表。"""
+    """从项目配置或 registry 获取当前视频模型支持的时长列表。"""
     durations = project.get("_supported_durations")
     if durations and isinstance(durations, list):
         return durations
+    # Resolve from registry via project's video_backend
+    video_backend = project.get("video_backend")
+    if video_backend and isinstance(video_backend, str) and "/" in video_backend:
+        try:
+            from lib.config.registry import PROVIDER_REGISTRY
+            provider_id, model_id = video_backend.split("/", 1)
+            provider_meta = PROVIDER_REGISTRY.get(provider_id)
+            if provider_meta:
+                model_info = provider_meta.models.get(model_id)
+                if model_info and model_info.supported_durations:
+                    return list(model_info.supported_durations)
+        except ImportError:
+            pass
     return DEFAULT_DURATIONS_FALLBACK
 
 
