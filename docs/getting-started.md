@@ -1,3 +1,282 @@
+[🇬🇧 English](#english) · [🇨🇳 中文](#chinese)
+
+---
+
+<a name="english"></a>
+
+# Complete Getting Started Tutorial
+
+This tutorial guides you from scratch to converting a novel into a short video using ArcReel.
+
+## What You Will Learn
+
+1. **Environment Setup** — Obtain API keys
+2. **Deploy the Service** — Deploy via Docker
+3. **Full Workflow** — Every step from novel to video
+4. **Advanced Tips** — Regeneration, cost control, local development
+
+## Estimated Time
+
+- Environment setup: 10–20 minutes (first time only)
+- Generating a 1-minute video: approximately 30 minutes
+
+## Cost Estimate
+
+ArcReel supports multiple providers (Gemini, Volcano Ark, Grok, OpenAI, and custom providers). The following uses Gemini as an example:
+
+| Type | Model | Unit Price | Notes |
+|------|-------|------------|-------|
+| Image generation | Nano Banana Pro | $0.134/image (1K/2K) | High quality, suitable for character design images |
+| Image generation | Nano Banana 2 | $0.067/image (1K) | Faster and cheaper, suitable for storyboard images |
+| Video generation | Veo 3.1 | $0.40/sec (1080p with audio) | High quality |
+| Video generation | Veo 3.1 Fast | $0.15/sec (1080p with audio) | Faster and cheaper |
+| Video generation | Veo 3.1 Lite | Lower | Lightweight model, AI Studio only |
+
+> 💡 **Example** (Gemini): A short video with 10 scenes (8 seconds each)
+> - Images: 3 character design images (Pro) + 10 storyboard images (Flash) = $0.40 + $0.67 = $1.07
+> - Video: 80 sec × $0.15 (Fast mode) = $12
+> - **Total approximately $13**
+
+> 🎁 **New user benefit**: New Google Cloud users receive **$300 in free credits**, valid for 90 days — enough to generate a large number of videos!
+>
+> For other providers' costs, please refer to their official pricing pages. ArcReel provides real-time cost tracking on the settings page.
+
+---
+
+## Chapter 1: Environment Setup
+
+### 1.1 Obtain Image/Video Generation Provider API Keys
+
+ArcReel supports multiple providers — configure **at least one** to get started:
+
+| Provider | Where to Get | Notes |
+|----------|-------------|-------|
+| **Gemini** (Google) | [AI Studio](https://aistudio.google.com/apikey) | Requires paid tier; new users automatically receive $300 credit |
+| **Volcano Ark** | [Volcano Engine Console](https://console.volcengine.com/ark) | Billed per token/image (CNY) |
+| **Grok** (xAI) | [xAI Console](https://console.x.ai/) | Billed per image/second (USD) |
+| **OpenAI** | [OpenAI Platform](https://platform.openai.com/) | Billed per image/second (USD) |
+
+You can also add **custom providers** (any OpenAI-compatible / Google-compatible API) through the settings page after deployment.
+
+> ⚠️ API keys are sensitive information. Keep them safe and do not share them with others or upload them to public repositories.
+
+### 1.2 Obtain an Anthropic API Key
+
+ArcReel has a built-in AI assistant based on the Claude Agent SDK, which handles key tasks such as script creation and intelligent conversational guidance.
+
+**Option A: Use the Official Anthropic API**
+
+1. Visit [Anthropic Console](https://console.anthropic.com/)
+2. Register an account and create an API key
+3. Configure it on the Web UI settings page
+
+**Option B: Use a Third-Party Anthropic-Compatible API**
+
+If you cannot access the Anthropic API directly, you can configure on the settings page:
+
+- **Base URL** — Enter the address of a relay service or compatible API
+- **Model** — Specify the model name to use (e.g., `claude-sonnet-4-6`)
+- You can also configure the default models and Subagent models separately for Haiku / Sonnet / Opus
+
+### 1.3 Prepare a Server
+
+**Server requirements:**
+
+- OS: Linux / macOS / Windows WSL
+- Memory: 2 GB+ recommended
+- Docker and Docker Compose installed
+
+**Install Docker (if not already installed):**
+
+```bash
+# Ubuntu / Debian
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+
+# Verify after re-login
+docker --version
+docker compose version
+```
+
+---
+
+## Chapter 2: Deploy the Service
+
+### 2.1 Download and Start
+
+#### Option A: Default Deployment (SQLite, recommended for getting started)
+
+```bash
+# 1. Clone the project
+git clone https://github.com/ArcReel/ArcReel.git
+cd ArcReel/deploy
+
+# 2. Create the environment variable file
+cp .env.example .env
+
+# 3. Start the service
+docker compose up -d
+```
+
+#### Option B: Production Deployment (PostgreSQL, recommended for production use)
+
+```bash
+cd ArcReel/deploy/production
+
+# Create the environment variable file (set POSTGRES_PASSWORD)
+cp .env.example .env
+
+docker compose up -d
+```
+
+After the containers finish starting, visit **http://your-server-ip:1241** in your browser.
+
+### 2.2 Initial Configuration
+
+1. Log in with the default account (username `admin`; password set via `AUTH_PASSWORD` in `.env` — if not set, it is auto-generated on first startup and written back to `.env`)
+2. Go to the **Settings page** (`/settings`)
+3. Configure the **Anthropic API Key** (powers the AI assistant); supports custom Base URL and model
+4. Configure at least one image/video **provider API Key** (Gemini / Volcano Ark / Grok / OpenAI), or add a custom provider
+5. Adjust model selection, rate limits, and other parameters as needed
+
+> 💡 All configuration items can be modified on the settings page — no need to manually edit configuration files.
+
+---
+
+## Chapter 3: Full Workflow
+
+The following steps are completed in the Web UI workbench.
+
+### 3.1 Create a Project
+
+1. Click "New Project" on the project list page
+2. Enter a project name (e.g., "My Novel")
+3. Upload the novel text file (.txt format)
+
+### 3.2 Generate the Storyboard Script
+
+Open the AI assistant panel on the right side of the project workbench and have the assistant generate a script through conversation:
+
+- The AI will automatically analyze the novel content and break it down into segments suitable for video
+- Each segment includes a scene description, the characters appearing, and important props/locations (clues)
+
+**Review point**: Check whether the script structure is reasonable and whether characters and clues are correctly identified.
+
+### 3.3 Generate Character Design Images
+
+The AI generates design images for each character to maintain consistent character appearance across all subsequent scenes.
+
+**Review point**: Check whether the character appearance matches the novel description; regenerate if unsatisfactory.
+
+### 3.4 Generate Clue Design Images
+
+The AI generates reference images for important props and scene elements (e.g., keepsakes, specific locations).
+
+**Review point**: Check whether the clue design meets expectations.
+
+### 3.5 Generate Storyboard Images
+
+The AI generates a static image for each scene based on the script, automatically referencing character and clue design images to ensure consistency.
+
+**Review point**: Check scene composition, character consistency, and atmosphere.
+
+### 3.6 Generate Video Clips
+
+Storyboard images serve as the starting frame; the selected video provider (Veo 3.1 / Seedance / Grok / Sora 2, etc.) generates 4–8 second dynamic video clips.
+
+Generation tasks enter an asynchronous task queue; you can monitor progress in real time on the task monitor panel. Image and Video channels run concurrently and independently, with RPM rate limiting to stay within API quotas.
+
+**Review point**: Preview each video clip; regenerate individual clips if unsatisfactory.
+
+### 3.7 Compose the Final Video
+
+All clips are concatenated via FFmpeg, with transition effects and background music added, to produce the final video.
+
+The default output is **9:16 portrait** format, suitable for publishing to short video platforms.
+
+---
+
+## Chapter 4: Advanced Tips
+
+### 4.1 Version History and Rollback
+
+Each time assets are regenerated, the system automatically saves a historical version. In the timeline view of the workbench, you can browse historical versions and roll back with one click.
+
+### 4.2 Cost Control
+
+**View cost statistics:**
+
+API call counts and cost details can be viewed on the settings page.
+
+**Tips to reduce spending:**
+
+- Carefully review the output at each stage to reduce rework
+- Generate a small number of scenes to test results first, then generate in bulk
+- Using Fast mode for video generation saves approximately 60% in costs
+- Use Flash model for storyboard images and Pro model for character design images
+
+### 4.3 Project Import/Export
+
+Projects support archive packaging for easy backup and migration:
+
+- **Export**: Package the entire project (including all assets) into an archive file
+- **Import**: Restore a project from an archive file
+
+---
+
+## Chapter 5: Frequently Asked Questions
+
+### Q: Docker fails to start?
+
+1. Confirm the Docker service is running: `systemctl status docker`
+2. Check if port 1241 is occupied: `ss -tlnp | grep 1241`
+3. View container logs: `docker compose logs` (run in the corresponding `deploy/` or `deploy/production/` directory)
+
+### Q: API calls failing?
+
+1. Confirm the API key for the corresponding provider is correctly entered on the settings page
+2. Gemini users must confirm that the paid tier is enabled (the free tier does not support image/video generation)
+3. Check whether the server's network can access the corresponding provider's API service
+4. Check in the provider's console whether API usage has exceeded the limit
+
+### Q: Characters look different across scenes?
+
+1. Make sure to generate character design images first
+2. Check the quality of character design images; regenerate if unsatisfactory
+3. The system will automatically use character design images as references to ensure consistency in subsequent scenes
+
+### Q: Video generation is very slow?
+
+Video generation typically takes 1–3 minutes per clip — this is normal. Factors that affect speed:
+
+- Video duration (4 seconds vs. 8 seconds)
+- API server load
+- Network conditions
+
+The task queue supports concurrent processing, so multiple video clips can be generated simultaneously.
+
+### Q: What if generation is interrupted?
+
+The task queue supports checkpoint resumption. When generation is re-triggered, the system automatically skips already-completed clips and processes only the remaining ones.
+
+---
+
+## Next Steps
+
+Congratulations on completing the getting-started tutorial! You can now:
+
+- 💰 View [Google GenAI Cost Reference](google-genai-docs/Google视频&图片生成费用参考.md) and [Volcano Ark Cost Reference](ark-docs/火山方舟费用参考.md) for detailed pricing
+- 🐛 Encountered an issue? Submit an [Issue](https://github.com/ArcReel/ArcReel/issues)
+- 💬 Scan the QR code to join the Feishu group for help and updates:
+
+<img src="assets/feishu-qr.png" alt="飞书交流群二维码" width="280">
+
+If you find the project useful, please give it a ⭐ Star!
+
+---
+
+<a name="chinese"></a>
+
 # 完整入门教程
 
 本教程指导你从零开始，使用 ArcReel 将小说转换为短视频。
