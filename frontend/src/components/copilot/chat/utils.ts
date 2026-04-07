@@ -1,3 +1,5 @@
+import i18n from "@/i18n";
+
 // ---------------------------------------------------------------------------
 // cn – lightweight className concatenation utility.
 // Filters out falsy values and joins the rest with spaces.
@@ -8,30 +10,31 @@ export function cn(...classes: (string | false | null | undefined)[]): string {
 }
 
 // ---------------------------------------------------------------------------
-// getRoleLabel – maps a turn role to a Chinese display label.
+// getRoleLabel – maps a turn role to a localised display label.
 // ---------------------------------------------------------------------------
 
 export function getRoleLabel(role: string): string {
+  const t = i18n.t.bind(i18n);
   switch (role) {
     case "assistant":
-      return "助手";
+      return t("copilot:roleAssistant");
     case "user":
-      return "你";
+      return t("copilot:roleUser");
     case "tool":
-      return "工具";
+      return t("copilot:roleTool");
     case "tool_result":
-      return "工具结果";
+      return t("copilot:roleToolResult");
     case "skill_content":
       return "Skill";
     case "result":
-      return "完成";
+      return t("copilot:roleResult");
     case "system":
-      return "系统";
+      return t("copilot:roleSystem");
     case "stream_event":
-      return "流式更新";
+      return t("copilot:roleStreamEvent");
     case "unknown":
-      return "消息";
+      return t("copilot:roleMessage");
     default:
-      return role || "消息";
+      return role || t("copilot:roleMessage");
   }
 }

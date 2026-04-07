@@ -1,0 +1,110 @@
+{
+  "pageNotFound": "页面未找到",
+  "backToHome": "返回首页",
+
+  "header": {
+    "title": "项目",
+    "importZip": "导入 ZIP",
+    "importing": "导入中...",
+    "newProject": "新建项目",
+    "openClawGuide": "OpenClaw 集成指南",
+    "systemSettings": "系统配置",
+    "configIncomplete": "配置不完整"
+  },
+
+  "list": {
+    "loading": "加载项目列表...",
+    "empty": "暂无项目",
+    "emptyHint": "点击右上角「新建项目」或「导入 ZIP」开始创作"
+  },
+
+  "card": {
+    "noStyle": "未设置风格",
+    "progress": "进度",
+    "characters": "角色 {{completed}}/{{total}}",
+    "clues": "线索 {{completed}}/{{total}}",
+    "episodesTotal": "{{total}} 集",
+    "episodesScripted": " · {{count}} 集剧本完成",
+    "episodesInProduction": " · {{count}} 集制作中",
+    "episodesCompleted": " · {{count}} 集已完成"
+  },
+
+  "phase": {
+    "setup": "准备中",
+    "worldbuilding": "世界观",
+    "scripting": "剧本创作",
+    "production": "制作中",
+    "completed": "已完成"
+  },
+
+  "importConflict": {
+    "title": "检测到项目编号重复",
+    "description": "导入包准备使用的项目编号",
+    "descriptionSuffix": "已存在。你可以覆盖现有项目，或自动重命名后继续导入。",
+    "overwrite": "覆盖现有项目",
+    "overwriteDesc": "使用导入包内容替换现有项目编号对应的数据",
+    "overwriteAriaLabel": "覆盖现有项目",
+    "rename": "自动重命名导入",
+    "renameDesc": "保留现有项目，新导入项目自动生成新的内部编号",
+    "renameAriaLabel": "自动重命名导入"
+  },
+
+  "importDiagnostics": {
+    "title": "导入诊断",
+    "description": "导入已完成预检查。以下问题按严重程度分组展示，阻断问题解决前不会继续导入。",
+    "blocking": "阻断问题",
+    "autoFixable": "可自动修复",
+    "warnings": "警告"
+  },
+
+  "importToast": {
+    "success": "项目 \"{{title}}\" 已导入",
+    "successWithFixes": "项目 \"{{title}}\" 已导入，自动修复 {{count}} 项",
+    "warning": "导入警告: {{messages}}",
+    "failed": "导入失败: {{detail}}（{{blocking}} 个阻断问题，{{autoFixable}} 个可自动修复）",
+    "failedNoAutoFix": "导入失败: {{detail}}（{{blocking}} 个阻断问题）"
+  },
+
+  "createModal": {
+    "title": "新建项目",
+    "projectTitle": "项目标题",
+    "titleRequired": "项目标题不能为空",
+    "titlePlaceholder": "例如：重生之皇后威武",
+    "titleHint": "系统会自动生成内部项目标识并用于 URL 与文件存储",
+    "contentMode": "内容模式",
+    "modeNarration": "说书+画面",
+    "modeDrama": "剧集动画",
+    "visualStyle": "视觉风格",
+    "stylePhotographic": "写实摄影",
+    "styleAnime": "动漫风格",
+    "style3D": "3D 动画",
+    "styleRefImage": "风格参考图",
+    "styleRefOptional": "（可选）",
+    "styleRefPreviewAlt": "风格参考图预览",
+    "uploadRefImage": "上传参考图片",
+    "styleRefHint": "上传后将自动分析风格特征，用于生成一致的画面",
+    "creating": "创建中...",
+    "createButton": "创建项目",
+    "createFailed": "创建项目失败: {{message}}",
+    "styleImageUploadFailed": "风格参考图上传失败，可稍后在项目设置中重新上传"
+  },
+
+  "openClaw": {
+    "title": "OpenClaw 集成指南",
+    "subtitle": "将 ArcReel 接入 OpenClaw AI Agent",
+    "closeAriaLabel": "关闭",
+    "systemPrompt": "学习 {{skillUrl}} 然后遵循 skill，了解如何使用 ArcReel 创作视频",
+    "skillDocUrl": "Skill 文档地址：",
+    "copied": "已复制",
+    "copy": "复制",
+    "usageSteps": "使用步骤",
+    "close": "关闭",
+    "getApiToken": "获取 API 令牌",
+    "step01Title": "向你的 OpenClaw 发送上述提示词",
+    "step01Desc": "复制提示词，粘贴给 OpenClaw 发送",
+    "step02Title": "OpenClaw 从 Skill 文档学习能力",
+    "step02Desc": "OpenClaw 会自动读取 ArcReel Skill 文档，获取所有可用工具与 API 的使用方式",
+    "step03Title": "OpenClaw 与 ArcReel 交互并创建视频",
+    "step03Desc": "描述你的创作需求，OpenClaw 将调用 ArcReel 完成项目管理、剧本生成和视频创作"
+  }
+}

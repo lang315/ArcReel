@@ -38,6 +38,7 @@ import type {
   CostEstimateResponse,
 } from "@/types";
 import { getToken, clearToken } from "@/utils/auth";
+import { translateApiError } from "@/utils/translate-error";
 
 // ==================== Helper types ====================
 
@@ -172,7 +173,7 @@ async function throwIfNotOk(response: Response, fallbackMsg: string): Promise<vo
     const error = await response
       .json()
       .catch(() => ({ detail: response.statusText }));
-    throw new Error(error.detail || fallbackMsg);
+    throw new Error(translateApiError(error.detail) || fallbackMsg);
   }
 }
 
@@ -181,7 +182,7 @@ function handleUnauthorized(response: Response): void {
 
   clearToken();
   globalThis.location.href = "/login";
-  throw new Error("认证已过期，请重新登录");
+  throw new Error(translateApiError("认证已过期，请重新登录"));
 }
 
 /** 为 fetch options 注入 Authorization header */
@@ -223,12 +224,7 @@ class API {
       const error = await response
         .json()
         .catch(() => ({ detail: response.statusText }));
-      let message = "请求失败";
-      if (typeof error.detail === "string") {
-        message = error.detail;
-      } else if (Array.isArray(error.detail) && error.detail.length > 0) {
-        message = error.detail.map((e: string | { msg?: string }) => (typeof e === "string" ? e : e?.msg)).filter(Boolean).join("; ") || message;
-      }
+      const message = translateApiError(error.detail) || translateApiError("请求失败");
       throw new Error(message);
     }
 

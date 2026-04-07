@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { User, Puzzle, Plus } from "lucide-react";
 import { CharacterCard } from "./CharacterCard";
 import { ClueCard } from "./ClueCard";
@@ -63,6 +64,7 @@ export function LorebookGallery({
   onAddCharacter,
   onAddClue,
 }: LorebookGalleryProps) {
+  const { t } = useTranslation(["canvas"]);
   const [activeTab, setActiveTab] = useState<Tab>(mode ?? "characters");
   const showTabs = !mode;
 
@@ -105,13 +107,13 @@ export function LorebookGallery({
           active={activeTab === "characters"}
           onClick={() => setActiveTab("characters")}
         >
-          角色 ({charCount})
+{t("lorebook.characters")} ({charCount})
         </TabButton>
         <TabButton
           active={activeTab === "clues"}
           onClick={() => setActiveTab("clues")}
         >
-          线索 ({clueCount})
+{t("lorebook.clues")} ({clueCount})
         </TabButton>
       </div>
       )}
@@ -122,7 +124,7 @@ export function LorebookGallery({
           {charCount === 0 ? (
             <EmptyState
               icon={<User className="h-12 w-12 text-gray-600" />}
-              message="暂无角色，点击下方按钮添加"
+message={t("lorebook.noCharacters")}
             />
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -143,7 +145,7 @@ export function LorebookGallery({
           )}
 
           {onAddCharacter && (
-            <AddButton onClick={onAddCharacter}>添加角色</AddButton>
+  <AddButton onClick={onAddCharacter}>{t("lorebook.addCharacter")}</AddButton>
           )}
         </>
       )}
@@ -154,7 +156,7 @@ export function LorebookGallery({
           {clueCount === 0 ? (
             <EmptyState
               icon={<Puzzle className="h-12 w-12 text-gray-600" />}
-              message="暂无线索，点击下方按钮添加"
+message={t("lorebook.noClues")}
             />
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -174,7 +176,7 @@ export function LorebookGallery({
             </div>
           )}
 
-          {onAddClue && <AddButton onClick={onAddClue}>添加线索</AddButton>}
+{onAddClue && <AddButton onClick={onAddClue}>{t("lorebook.addClue")}</AddButton>}
         </>
       )}
     </div>

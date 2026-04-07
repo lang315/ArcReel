@@ -1,6 +1,7 @@
 // router.tsx — Route definitions for the studio layout
 
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Route, Switch, Redirect, useParams } from "wouter";
 import { StudioLayout } from "@/components/layout";
 import { StudioCanvasRouter } from "@/components/canvas/StudioCanvasRouter";
@@ -20,12 +21,13 @@ import { useAuthStore } from "@/stores/auth-store";
 // ---------------------------------------------------------------------------
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation("common");
   const { isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-950 text-gray-500">
-        加载中...
+        {t("loading")}
       </div>
     );
   }

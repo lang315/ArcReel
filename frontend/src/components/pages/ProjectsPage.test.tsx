@@ -36,7 +36,7 @@ describe("ProjectsPage", () => {
     );
 
     renderPage();
-    expect(screen.getByText("加载项目列表...")).toBeInTheDocument();
+    expect(screen.getByText("list.loading")).toBeInTheDocument();
   });
 
   it("shows empty state when no projects exist", async () => {
@@ -44,9 +44,9 @@ describe("ProjectsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("暂无项目")).toBeInTheDocument();
+    expect(await screen.findByText("list.empty")).toBeInTheDocument();
     expect(
-      screen.getByText("点击右上角「新建项目」或「导入 ZIP」开始创作"),
+      screen.getByText("list.emptyHint"),
     ).toBeInTheDocument();
   });
 
@@ -72,7 +72,7 @@ describe("ProjectsPage", () => {
     renderPage();
 
     expect(await screen.findByText("Demo Project")).toBeInTheDocument();
-    expect(screen.getByText("Anime · 制作中")).toBeInTheDocument();
+    expect(screen.getByText("Anime · phase.production")).toBeInTheDocument();
     expect(screen.getByText("50%")).toBeInTheDocument();
   });
 
@@ -80,9 +80,9 @@ describe("ProjectsPage", () => {
     vi.spyOn(API, "listProjects").mockResolvedValue({ projects: [] });
 
     renderPage();
-    await screen.findByText("暂无项目");
+    await screen.findByText("list.empty");
 
-    fireEvent.click(screen.getByRole("button", { name: "新建项目" }));
+    fireEvent.click(screen.getByRole("button", { name: "header.newProject" }));
 
     await waitFor(() => {
       expect(useProjectsStore.getState().showCreateModal).toBe(true);
@@ -130,7 +130,7 @@ describe("ProjectsPage", () => {
     });
 
     const { container, location } = renderPage();
-    await screen.findByText("暂无项目");
+    await screen.findByText("list.empty");
 
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["zip"], "project.zip", { type: "application/zip" });
@@ -142,7 +142,7 @@ describe("ProjectsPage", () => {
     await waitFor(() => {
       expect(location.history?.at(-1)).toBe("/app/projects/imported-demo");
     });
-    expect(useAppStore.getState().toast?.text).toContain("导入警告");
+    expect(useAppStore.getState().toast?.text).toContain("importToast.warning");
   });
 
   it("shows a structured toast when import fails", async () => {
@@ -175,7 +175,7 @@ describe("ProjectsPage", () => {
     vi.spyOn(API, "importProject").mockRejectedValue(error);
 
     const { container } = renderPage();
-    await screen.findByText("暂无项目");
+    await screen.findByText("list.empty");
 
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(fileInput, {
@@ -183,9 +183,9 @@ describe("ProjectsPage", () => {
     });
 
     await waitFor(() => {
-      expect(useAppStore.getState().toast?.text).toContain("导入包校验失败");
+      expect(useAppStore.getState().toast?.text).toContain("importToast.failed");
     });
-    expect(screen.getByText("导入诊断")).toBeInTheDocument();
+    expect(screen.getByText("importDiagnostics.title")).toBeInTheDocument();
     expect(screen.getByText("缺少 project.json")).toBeInTheDocument();
     expect(screen.getByText("缺少 scripts/episode_1.json")).toBeInTheDocument();
     expect(screen.getByText("segments[0]: 补全缺失字段 clues_in_segment")).toBeInTheDocument();
@@ -244,14 +244,14 @@ describe("ProjectsPage", () => {
       });
 
     const { container, location } = renderPage();
-    await screen.findByText("暂无项目");
+    await screen.findByText("list.empty");
 
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["zip"], "project.zip", { type: "application/zip" });
     fireEvent.change(fileInput, { target: { files: [file] } });
 
-    expect(await screen.findByText("检测到项目编号重复")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "自动重命名导入" }));
+    expect(await screen.findByText("importConflict.title")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "importConflict.renameAriaLabel" }));
 
     await waitFor(() => {
       expect(API.importProject).toHaveBeenNthCalledWith(1, file, "prompt");

@@ -1,0 +1,38 @@
+{
+  "phases": {
+    "setup": "Chuẩn bị",
+    "worldbuilding": "Thế giới quan",
+    "scripting": "Viết kịch bản",
+    "production": "Sản xuất",
+    "completed": "Hoàn thành"
+  },
+  "workflowSteps": "Các bước quy trình",
+  "backToProjects": "Danh sách dự án",
+  "backToProjectsLabel": "Quay lại danh sách dự án",
+  "contentMode": {
+    "drama": "Phim hoạt hình 16:9",
+    "storytelling": "Kể chuyện 9:16"
+  },
+  "notifications": "Thông báo: {{count}}",
+  "openNotifications": "Mở thông báo",
+  "projectCost": "Chi phí dự án: {{cost}}",
+  "taskStatus": "Tác vụ: {{running}} đang chạy, {{queued}} đang xếp hàng",
+  "toggleTaskPanel": "Bật/tắt bảng tác vụ",
+  "exportZip": "Xuất ZIP",
+  "exportZipLabel": "Xuất dự án hiện tại dưới dạng ZIP",
+  "exporting": "Đang xuất...",
+  "settings": "Cài đặt",
+  "configIncomplete": "Cấu hình chưa hoàn tất",
+  "export": {
+    "jianyingStarted": "Đã bắt đầu xuất bản nháp Jianying. Vui lòng giải nén file ZIP đã tải về vào thư mục bản nháp Jianying.",
+    "jianyingFailed": "Xuất bản nháp Jianying thất bại: {{message}}",
+    "zipStarted": "Đã bắt đầu tải ZIP dự án",
+    "zipWithDiagnostics": "Đã bắt đầu tải ZIP dự án với {{count}} chuẩn đoán",
+    "failed": "Xuất thất bại: {{message}}",
+    "diagnosticsTitle": "Chẩn đoán xuất",
+    "diagnosticsDescription": "Quá trình xuất đã hoàn thành kiểm tra và tạo ZIP. Các vấn đề sau đây đã được phát hiện.",
+    "blockingIssues": "Vấn đề chặn",
+    "autoFixed": "Đã tự động sửa",
+    "warnings": "Cảnh báo"
+  }
+}

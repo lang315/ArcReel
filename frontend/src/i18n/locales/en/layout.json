@@ -1,0 +1,38 @@
+{
+  "phases": {
+    "setup": "Setup",
+    "worldbuilding": "Worldbuilding",
+    "scripting": "Scripting",
+    "production": "Production",
+    "completed": "Completed"
+  },
+  "workflowSteps": "Workflow Steps",
+  "backToProjects": "Projects",
+  "backToProjectsLabel": "Back to projects",
+  "contentMode": {
+    "drama": "Drama 16:9",
+    "storytelling": "Storytelling 9:16"
+  },
+  "notifications": "Notifications: {{count}}",
+  "openNotifications": "Open notifications",
+  "projectCost": "Project cost: {{cost}}",
+  "taskStatus": "Tasks: {{running}} running, {{queued}} queued",
+  "toggleTaskPanel": "Toggle task panel",
+  "exportZip": "Export ZIP",
+  "exportZipLabel": "Export current project as ZIP",
+  "exporting": "Exporting...",
+  "settings": "Settings",
+  "configIncomplete": "Configuration incomplete",
+  "export": {
+    "jianyingStarted": "Jianying draft export started. Please extract the downloaded ZIP to the Jianying drafts folder.",
+    "jianyingFailed": "Jianying draft export failed: {{message}}",
+    "zipStarted": "Project ZIP download started",
+    "zipWithDiagnostics": "Project ZIP download started with {{count}} diagnostics",
+    "failed": "Export failed: {{message}}",
+    "diagnosticsTitle": "Export Diagnostics",
+    "diagnosticsDescription": "Export completed pre-check and generated the ZIP. The following issues were detected in the export package.",
+    "blockingIssues": "Blocking Issues",
+    "autoFixed": "Auto-fixed",
+    "warnings": "Warnings"
+  }
+}

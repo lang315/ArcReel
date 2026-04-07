@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ImageIcon, Film, Clock } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
@@ -266,6 +267,7 @@ function TextColumn({
   contentMode: "narration" | "drama";
   onUpdateNote?: (value: string) => void;
 }) {
+  const { t } = useTranslation(["canvas"]);
   const [noteDraft, setNoteDraft] = useState(segment.note ?? "");
   const committedRef = useRef(segment.note ?? "");
 
@@ -284,13 +286,13 @@ function TextColumn({
   const noteSection = (
     <div className="mt-auto pt-3 border-t border-gray-800">
       <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 block">
-        备注
+        {t("segment.note")}
       </span>
       <textarea
         className="w-full resize-none rounded-lg border border-gray-700 bg-gray-800/50 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
         rows={4}
-        placeholder="添加备注..."
-        aria-label="备注"
+        placeholder={t("segment.addNote")}
+aria-label={t("segment.noteAriaLabel")}
         value={noteDraft}
         onChange={(e) => setNoteDraft(e.target.value)}
         onBlur={handleNoteBlur}
@@ -303,10 +305,10 @@ function TextColumn({
     return (
       <div className="flex h-full flex-col gap-1.5 p-3">
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
-          原文
+          {t("segment.originalText")}
         </span>
         <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-300 font-sans">
-          {s.novel_text || "（暂无原文）"}
+          {s.novel_text || t("segment.noOriginalText")}
         </pre>
         {noteSection}
       </div>
@@ -322,10 +324,10 @@ function TextColumn({
   return (
     <div className="flex h-full flex-col gap-1.5 p-3">
       <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
-        对话
+        {t("segment.dialogue")}
       </span>
       {dialogue.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">（暂无对话）</p>
+        <p className="text-sm text-gray-500 italic">{t("segment.noDialogue")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {dialogue.map((d: { speaker: string; line: string }, i: number) => (
@@ -357,6 +359,7 @@ function PromptColumn({
   segmentId: string;
   onUpdatePrompt?: (segmentId: string, field: string, value: unknown) => void;
 }) {
+  const { t } = useTranslation(["canvas"]);
   const { image_prompt, video_prompt } = segment;
 
   const isStructuredImage = isStructuredImagePromptValue(image_prompt);
@@ -452,7 +455,7 @@ function PromptColumn({
   return (
     <div className="flex flex-col gap-3 p-3">
       <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-        提示词
+        {t("segment.prompt")}
       </span>
 
       {/* ---- Image Prompt ---- */}
@@ -476,7 +479,7 @@ function PromptColumn({
               setImgText(v);
               fireString("image_prompt", v);
             }}
-            placeholder="分镜图描述..."
+            placeholder={t("segment.imagePromptPlaceholder")}
           />
         )}
       </div>
@@ -502,7 +505,7 @@ function PromptColumn({
               setVidText(v);
               fireString("video_prompt", v);
             }}
-            placeholder="视频动作描述..."
+            placeholder={t("segment.videoPromptPlaceholder")}
           />
         )}
       </div>
@@ -551,6 +554,7 @@ function MediaColumn({
   generatingStoryboard?: boolean;
   generatingVideo?: boolean;
 }) {
+  const { t } = useTranslation(["canvas"]);
   const assets = segment.generated_assets;
   const storyboardFp = useProjectsStore(
     (s) => assets?.storyboard_image ? s.getAssetFingerprint(assets.storyboard_image) : null,
@@ -583,7 +587,7 @@ function MediaColumn({
         <div className="mb-1.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <ImageIcon className="h-3 w-3 text-gray-500" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">分镜图</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{t("segment.storyboardLabel")}</span>
           </div>
           <VersionTimeMachine
             projectName={projectName}
@@ -592,17 +596,17 @@ function MediaColumn({
             onRestore={onRestoreStoryboard}
           />
         </div>
-        <PreviewableImageFrame src={storyboardUrl} alt={`${segmentId} 分镜图`}>
+        <PreviewableImageFrame src={storyboardUrl} alt={t("segment.storyboardAlt", { id: segmentId })}>
           <AspectFrame ratio={normalizedRatio}>
             <ImageFlipReveal
               src={storyboardUrl}
-              alt={`${segmentId} 分镜图`}
+alt={t("segment.storyboardAlt", { id: segmentId })}
               loading="lazy"
               className="h-full w-full object-cover"
               fallback={
                 <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-600">
                   <ImageIcon className="h-8 w-8" />
-                  <span className="text-xs">暂无分镜</span>
+                  <span className="text-xs">{t("segment.noStoryboard")}</span>
                 </div>
               }
             />
@@ -612,7 +616,7 @@ function MediaColumn({
           <GenerateButton
             onClick={() => onGenerateStoryboard?.(segmentId)}
             loading={generatingStoryboard}
-            label="生成分镜"
+label={t("segment.generateStoryboard")}
             className="w-full justify-center"
           />
         </div>
@@ -623,7 +627,7 @@ function MediaColumn({
         <div className="mb-1.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Film className="h-3 w-3 text-gray-500" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">视频</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{t("segment.videoLabel")}</span>
           </div>
           <VersionTimeMachine
             projectName={projectName}
@@ -639,7 +643,7 @@ function MediaColumn({
         ) : (
           <div className="flex items-center justify-center rounded-lg border border-dashed border-gray-700 bg-gray-800/30 py-4">
             <span className="text-xs text-gray-600">
-              {assets?.storyboard_image ? "可生成视频" : "需先生成分镜"}
+{assets?.storyboard_image ? t("segment.canGenerateVideo") : t("segment.needStoryboardFirst")}
             </span>
           </div>
         )}
@@ -647,7 +651,7 @@ function MediaColumn({
           <GenerateButton
             onClick={() => onGenerateVideo?.(segmentId)}
             loading={generatingVideo}
-            label="生成视频"
+label={t("segment.generateVideo")}
             className="w-full justify-center"
             disabled={!assets?.storyboard_image}
           />
@@ -676,6 +680,7 @@ export function SegmentCard({
   generatingStoryboard = false,
   generatingVideo = false,
 }: SegmentCardProps) {
+  const { t } = useTranslation(["canvas"]);
   const segmentId = getSegmentId(segment, contentMode);
   const segCost = useCostStore((s) => s.getSegmentCost(segmentId));
   const charNames = getCharacterNames(segment, contentMode);
@@ -703,13 +708,13 @@ export function SegmentCard({
             {segCost && (
               <span className="tabular-nums contents">
                 <span className="text-gray-700">|</span>
-                <span className="text-[11px] text-gray-600">预估</span>
-                <span className="text-[11px] text-gray-500">分镜 <span className="text-gray-400">{formatCost(segCost.estimate.image)}</span></span>
-                <span className="text-[11px] text-gray-500">视频 <span className="text-gray-400">{formatCost(segCost.estimate.video)}</span></span>
+                <span className="text-[11px] text-gray-600">{t("segment.estimate")}</span>
+                <span className="text-[11px] text-gray-500">{t("segment.storyboardCost")} <span className="text-gray-400">{formatCost(segCost.estimate.image)}</span></span>
+                <span className="text-[11px] text-gray-500">{t("segment.videoCost")} <span className="text-gray-400">{formatCost(segCost.estimate.video)}</span></span>
                 <span className="text-gray-700">|</span>
-                <span className="text-[11px] text-gray-600">实际</span>
-                <span className="text-[11px] text-gray-500">分镜 <span className="text-gray-400">{formatCost(segCost.actual.image)}</span></span>
-                <span className="text-[11px] text-gray-500">视频 <span className="text-gray-400">{formatCost(segCost.actual.video)}</span></span>
+                <span className="text-[11px] text-gray-600">{t("segment.actual")}</span>
+                <span className="text-[11px] text-gray-500">{t("segment.storyboardCost")} <span className="text-gray-400">{formatCost(segCost.actual.image)}</span></span>
+                <span className="text-[11px] text-gray-500">{t("segment.videoCost")} <span className="text-gray-400">{formatCost(segCost.actual.video)}</span></span>
               </span>
             )}
           </div>

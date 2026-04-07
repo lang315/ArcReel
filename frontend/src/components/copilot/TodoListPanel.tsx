@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Check, Circle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Turn, TodoItem } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,7 @@ interface TodoListPanelProps {
 }
 
 export function TodoListPanel({ turns, draftTurn }: TodoListPanelProps) {
+  const { t } = useTranslation("copilot");
   const [collapsed, setCollapsed] = useState(false);
 
   const todos = useMemo(
@@ -64,7 +66,7 @@ export function TodoListPanel({ turns, draftTurn }: TodoListPanelProps) {
   const total = todos.length;
   const progressPercent = Math.round((completedCount / total) * 100);
   const currentTask = todos.find((t) => t.status === "in_progress");
-  const headerLabel = currentTask?.activeForm ?? "任务进行中";
+  const headerLabel = currentTask?.activeForm ?? t("taskInProgress");
 
   return (
     <div className="mx-3 mb-1 rounded-lg border border-white/10 bg-white/[0.03] overflow-hidden">
