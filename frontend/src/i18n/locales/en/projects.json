@@ -1,0 +1,110 @@
+{
+  "pageNotFound": "Page not found",
+  "backToHome": "Back to home",
+
+  "header": {
+    "title": "Projects",
+    "importZip": "Import ZIP",
+    "importing": "Importing...",
+    "newProject": "New Project",
+    "openClawGuide": "OpenClaw Integration Guide",
+    "systemSettings": "System Settings",
+    "configIncomplete": "Configuration incomplete"
+  },
+
+  "list": {
+    "loading": "Loading projects...",
+    "empty": "No projects yet",
+    "emptyHint": "Click 'New Project' or 'Import ZIP' in the top-right corner to get started"
+  },
+
+  "card": {
+    "noStyle": "No style set",
+    "progress": "Progress",
+    "characters": "Characters {{completed}}/{{total}}",
+    "clues": "Clues {{completed}}/{{total}}",
+    "episodesTotal": "{{total}} episodes",
+    "episodesScripted": " · {{count}} scripted",
+    "episodesInProduction": " · {{count}} in production",
+    "episodesCompleted": " · {{count}} completed"
+  },
+
+  "phase": {
+    "setup": "Setup",
+    "worldbuilding": "Worldbuilding",
+    "scripting": "Scripting",
+    "production": "Production",
+    "completed": "Completed"
+  },
+
+  "importConflict": {
+    "title": "Duplicate project ID detected",
+    "description": "The project ID intended for import",
+    "descriptionSuffix": "already exists. You can overwrite the existing project or auto-rename the imported one.",
+    "overwrite": "Overwrite existing project",
+    "overwriteDesc": "Replace existing project data with the contents of the import package",
+    "overwriteAriaLabel": "Overwrite existing project",
+    "rename": "Auto-rename on import",
+    "renameDesc": "Keep the existing project; the imported project will receive a new internal ID",
+    "renameAriaLabel": "Auto-rename on import"
+  },
+
+  "importDiagnostics": {
+    "title": "Import Diagnostics",
+    "description": "Pre-import checks completed. Issues are grouped by severity; blocking issues must be resolved before import can continue.",
+    "blocking": "Blocking issues",
+    "autoFixable": "Auto-fixable",
+    "warnings": "Warnings"
+  },
+
+  "importToast": {
+    "success": "Project \"{{title}}\" imported",
+    "successWithFixes": "Project \"{{title}}\" imported, {{count}} issue(s) auto-fixed",
+    "warning": "Import warning: {{messages}}",
+    "failed": "Import failed: {{detail}} ({{blocking}} blocking, {{autoFixable}} auto-fixable)",
+    "failedNoAutoFix": "Import failed: {{detail}} ({{blocking}} blocking)"
+  },
+
+  "createModal": {
+    "title": "New Project",
+    "projectTitle": "Project Title",
+    "titleRequired": "Project title cannot be empty",
+    "titlePlaceholder": "e.g. The Empress Rises",
+    "titleHint": "An internal project ID will be auto-generated for URLs and file storage",
+    "contentMode": "Content Mode",
+    "modeNarration": "Narration + Visuals",
+    "modeDrama": "Drama Animation",
+    "visualStyle": "Visual Style",
+    "stylePhotographic": "Photographic",
+    "styleAnime": "Anime",
+    "style3D": "3D Animation",
+    "styleRefImage": "Style Reference Image",
+    "styleRefOptional": "(optional)",
+    "styleRefPreviewAlt": "Style reference image preview",
+    "uploadRefImage": "Upload reference image",
+    "styleRefHint": "Style features will be automatically analysed to generate consistent visuals",
+    "creating": "Creating...",
+    "createButton": "Create Project",
+    "createFailed": "Failed to create project: {{message}}",
+    "styleImageUploadFailed": "Style reference image upload failed; you can re-upload later in project settings"
+  },
+
+  "openClaw": {
+    "title": "OpenClaw Integration Guide",
+    "subtitle": "Connect ArcReel to OpenClaw AI Agent",
+    "closeAriaLabel": "Close",
+    "systemPrompt": "Learn {{skillUrl}} then follow the skill to understand how to create videos with ArcReel",
+    "skillDocUrl": "Skill document URL:",
+    "copied": "Copied",
+    "copy": "Copy",
+    "usageSteps": "Usage Steps",
+    "close": "Close",
+    "getApiToken": "Get API Token",
+    "step01Title": "Send the prompt above to your OpenClaw",
+    "step01Desc": "Copy the prompt and paste it to OpenClaw",
+    "step02Title": "OpenClaw learns capabilities from the Skill document",
+    "step02Desc": "OpenClaw will automatically read the ArcReel Skill document to learn all available tools and API usage",
+    "step03Title": "OpenClaw interacts with ArcReel to create videos",
+    "step03Desc": "Describe your creative needs and OpenClaw will call ArcReel to handle project management, script generation, and video creation"
+  }
+}

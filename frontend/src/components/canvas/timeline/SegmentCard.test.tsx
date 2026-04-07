@@ -70,7 +70,7 @@ describe("SegmentCard", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "SEG-1 分镜图 全屏预览" }),
+      screen.getByRole("button", { name: "segment.storyboardAlt 全屏预览" }),
     ).toBeInTheDocument();
 
     const video = container.querySelector("video");

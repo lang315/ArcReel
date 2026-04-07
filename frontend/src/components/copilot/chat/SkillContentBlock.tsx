@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "./utils";
 import { StreamMarkdown } from "../StreamMarkdown";
 
@@ -27,6 +28,7 @@ function extractSkillName(text: string | undefined): string {
 }
 
 export function SkillContentBlock({ text }: SkillContentBlockProps) {
+  const { t } = useTranslation("copilot");
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!text) {
@@ -44,14 +46,14 @@ export function SkillContentBlock({ text }: SkillContentBlockProps) {
       >
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-purple-400">
-            Skill 内容
+            {t("skillContent")}
           </span>
           <span className="text-xs text-slate-400">
             {skillName}
           </span>
         </div>
         <span className="text-xs text-slate-500">
-          {isExpanded ? "\u25BC 收起" : "\u25B6 展开"}
+          {isExpanded ? `\u25BC ${t("collapsed")}` : `\u25B6 ${t("expanded")}`}
         </span>
       </button>
       {isExpanded && (

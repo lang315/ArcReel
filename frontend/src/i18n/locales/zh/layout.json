@@ -1,0 +1,38 @@
+{
+  "phases": {
+    "setup": "准备中",
+    "worldbuilding": "世界观",
+    "scripting": "剧本创作",
+    "production": "制作中",
+    "completed": "已完成"
+  },
+  "workflowSteps": "工作流阶段",
+  "backToProjects": "项目大厅",
+  "backToProjectsLabel": "返回项目大厅",
+  "contentMode": {
+    "drama": "剧集动画 16:9",
+    "storytelling": "说书模式 9:16"
+  },
+  "notifications": "会话通知: {{count}} 条",
+  "openNotifications": "打开通知中心",
+  "projectCost": "项目总花费: {{cost}}",
+  "taskStatus": "任务状态: {{running}} 运行中, {{queued}} 排队中",
+  "toggleTaskPanel": "切换任务面板",
+  "exportZip": "导出 ZIP",
+  "exportZipLabel": "导出当前项目 ZIP",
+  "exporting": "导出中...",
+  "settings": "设置",
+  "configIncomplete": "配置不完整",
+  "export": {
+    "jianyingStarted": "剪映草稿导出已开始，请将下载的 ZIP 解压到剪映草稿目录中",
+    "jianyingFailed": "剪映草稿导出失败: {{message}}",
+    "zipStarted": "项目 ZIP 已开始下载",
+    "zipWithDiagnostics": "项目 ZIP 已开始下载，导出包包含 {{count}} 条诊断",
+    "failed": "导出失败: {{message}}",
+    "diagnosticsTitle": "导出诊断",
+    "diagnosticsDescription": "导出已完成预检查并生成 ZIP。以下问题在导出包中被检测到。",
+    "blockingIssues": "阻断问题",
+    "autoFixed": "已自动修复",
+    "warnings": "警告"
+  }
+}

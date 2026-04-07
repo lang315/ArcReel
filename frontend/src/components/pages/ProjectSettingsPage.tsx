@@ -1,12 +1,14 @@
 import { useParams, useLocation } from "wouter";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { ArrowLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { PROVIDER_NAMES } from "@/components/ui/ProviderIcon";
 
 export function ProjectSettingsPage() {
+  const { t } = useTranslation(["settings", "common"]);
   const params = useParams<{ projectName: string }>();
   const projectName = params.projectName || "";
   const [, navigate] = useLocation();
@@ -95,9 +97,9 @@ export function ProjectSettingsPage() {
   }, [isDirty]);
 
   const guardedNavigate = useCallback((path: string) => {
-    if (isDirty && !window.confirm("有未保存的修改，确定要离开吗？")) return;
+    if (isDirty && !window.confirm(t("project.unsavedConfirm"))) return;
     navigate(path);
-  }, [isDirty, navigate]);
+  }, [isDirty, navigate, t]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -111,13 +113,20 @@ export function ProjectSettingsPage() {
         text_backend_style: textStyle || null,
       });
       initialRef.current = { videoBackend, imageBackend, audioOverride, textScript, textOverview, textStyle };
-      useAppStore.getState().pushToast("已保存", "success");
+      useAppStore.getState().pushToast(t("project.saved"), "success");
     } catch (e: unknown) {
-      useAppStore.getState().pushToast(e instanceof Error ? e.message : "保存失败", "error");
+      useAppStore.getState().pushToast(e instanceof Error ? e.message : t("project.saveFailed"), "error");
     } finally {
       setSaving(false);
     }
-  }, [videoBackend, imageBackend, audioOverride, textScript, textOverview, textStyle, projectName]);
+  }, [videoBackend, imageBackend, audioOverride, textScript, textOverview, textStyle, projectName, t]);
+
+  // Text model fields with translations
+  const textModelRows: [string, React.Dispatch<React.SetStateAction<string>>, string][] = [
+    [textScript, setTextScript, t("project.scriptGeneration")],
+    [textOverview, setTextOverview, t("project.overviewGeneration")],
+    [textStyle, setTextStyle, t("project.styleAnalysis")],
+  ];
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-950 overflow-y-auto">
@@ -126,19 +135,19 @@ export function ProjectSettingsPage() {
         <button
           onClick={() => guardedNavigate(`/app/projects/${projectName}`)}
           className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-800 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-          aria-label="返回项目"
+          aria-label={t("project.backLabel")}
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-semibold text-gray-100">项目设置</h1>
+        <h1 className="text-lg font-semibold text-gray-100">{t("project.title")}</h1>
       </div>
 
       {/* Content */}
       <div className="mx-auto max-w-2xl px-6 py-8 space-y-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-100">模型配置</h2>
+          <h2 className="text-lg font-semibold text-gray-100">{t("project.modelConfig")}</h2>
           <p className="mt-1 text-sm text-gray-500">
-            为此项目单独选择生成模型，留空则跟随全局默认
+            {t("project.modelConfigHint")}
           </p>
         </div>
 
@@ -146,7 +155,7 @@ export function ProjectSettingsPage() {
           <>
             {/* Video model override */}
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
-              <div className="mb-3 text-sm font-medium text-gray-100">视频模型</div>
+              <div className="mb-3 text-sm font-medium text-gray-100">{t("project.videoModel")}</div>
               <ProviderModelSelect
                 value={videoBackend}
                 options={options.video_backends}
@@ -154,14 +163,14 @@ export function ProjectSettingsPage() {
                 onChange={setVideoBackend}
                 allowDefault
                 defaultHint={
-                  globalDefaults.video ? `当前全局: ${globalDefaults.video}` : undefined
+                  globalDefaults.video ? t("project.currentGlobal", { value: globalDefaults.video }) : undefined
                 }
               />
             </div>
 
             {/* Image model override */}
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
-              <div className="mb-3 text-sm font-medium text-gray-100">图片模型</div>
+              <div className="mb-3 text-sm font-medium text-gray-100">{t("project.imageModel")}</div>
               <ProviderModelSelect
                 value={imageBackend}
                 options={options.image_backends}
@@ -169,43 +178,39 @@ export function ProjectSettingsPage() {
                 onChange={setImageBackend}
                 allowDefault
                 defaultHint={
-                  globalDefaults.image ? `当前全局: ${globalDefaults.image}` : undefined
+                  globalDefaults.image ? t("project.currentGlobal", { value: globalDefaults.image }) : undefined
                 }
               />
             </div>
 
             {/* Audio override */}
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
-              <div className="mb-3 text-sm font-medium text-gray-100">生成音频</div>
+              <div className="mb-3 text-sm font-medium text-gray-100">{t("project.generateAudio")}</div>
               <fieldset className="flex gap-4">
-                <legend className="sr-only">生成音频设置</legend>
+                <legend className="sr-only">{t("project.audioSettings")}</legend>
                 <label className="flex items-center gap-2 text-sm text-gray-300">
                   <input type="radio" name="audio" value="" checked={audioOverride === null}
                     onChange={() => setAudioOverride(null)} />
-                  跟随全局默认
+                  {t("project.followGlobal")}
                 </label>
                 <label className="flex items-center gap-2 text-sm text-gray-300">
                   <input type="radio" name="audio" value="true" checked={audioOverride === true}
                     onChange={() => setAudioOverride(true)} />
-                  开启
+                  {t("project.audioOn")}
                 </label>
                 <label className="flex items-center gap-2 text-sm text-gray-300">
                   <input type="radio" name="audio" value="false" checked={audioOverride === false}
                     onChange={() => setAudioOverride(false)} />
-                  关闭
+                  {t("project.audioOff")}
                 </label>
               </fieldset>
             </div>
             {/* Text model overrides */}
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
-              <div className="mb-3 text-sm font-medium text-gray-100">文本模型</div>
-              <p className="mb-2 text-xs text-gray-500">按任务类型覆盖，留空跟随全局默认</p>
+              <div className="mb-3 text-sm font-medium text-gray-100">{t("project.textModel")}</div>
+              <p className="mb-2 text-xs text-gray-500">{t("project.textModelHint")}</p>
               <div className="space-y-3">
-                {([
-                  [textScript, setTextScript, "剧本生成"] as const,
-                  [textOverview, setTextOverview, "概述生成"] as const,
-                  [textStyle, setTextStyle, "风格分析"] as const,
-                ]).map(([value, setter, label]) => (
+                {textModelRows.map(([value, setter, label]) => (
                   <div key={label}>
                     <div className="mb-1 text-xs text-gray-400">{label}</div>
                     <ProviderModelSelect
@@ -214,7 +219,7 @@ export function ProjectSettingsPage() {
                       providerNames={allProviderNames}
                       onChange={setter}
                       allowDefault
-                      defaultHint="跟随全局默认"
+                      defaultHint={t("project.followGlobalDefault")}
                       aria-label={label}
                     />
                   </div>
@@ -225,7 +230,7 @@ export function ProjectSettingsPage() {
         )}
 
         {!options && (
-          <div className="text-sm text-gray-500">加载配置中…</div>
+          <div className="text-sm text-gray-500">{t("project.loadingConfig")}</div>
         )}
 
         {/* Actions */}
@@ -235,13 +240,13 @@ export function ProjectSettingsPage() {
             disabled={saving}
             className="rounded-lg bg-indigo-600 px-6 py-2 text-sm text-white hover:bg-indigo-500 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
           >
-            {saving ? "保存中…" : "保存"}
+            {saving ? t("common:saving") : t("common:save")}
           </button>
           <button
             onClick={() => guardedNavigate(`/app/projects/${projectName}`)}
             className="rounded-lg border border-gray-700 px-6 py-2 text-sm text-gray-300 hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
           >
-            取消
+            {t("common:cancel")}
           </button>
         </div>
       </div>

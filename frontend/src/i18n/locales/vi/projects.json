@@ -1,0 +1,110 @@
+{
+  "pageNotFound": "Không tìm thấy trang",
+  "backToHome": "Về trang chủ",
+
+  "header": {
+    "title": "Dự án",
+    "importZip": "Nhập ZIP",
+    "importing": "Đang nhập...",
+    "newProject": "Dự án mới",
+    "openClawGuide": "Hướng dẫn tích hợp OpenClaw",
+    "systemSettings": "Cài đặt hệ thống",
+    "configIncomplete": "Cấu hình chưa hoàn chỉnh"
+  },
+
+  "list": {
+    "loading": "Đang tải danh sách dự án...",
+    "empty": "Chưa có dự án nào",
+    "emptyHint": "Nhấn 'Dự án mới' hoặc 'Nhập ZIP' ở góc trên bên phải để bắt đầu"
+  },
+
+  "card": {
+    "noStyle": "Chưa đặt phong cách",
+    "progress": "Tiến độ",
+    "characters": "Nhân vật {{completed}}/{{total}}",
+    "clues": "Manh mối {{completed}}/{{total}}",
+    "episodesTotal": "{{total}} tập",
+    "episodesScripted": " · {{count}} tập có kịch bản",
+    "episodesInProduction": " · {{count}} tập đang sản xuất",
+    "episodesCompleted": " · {{count}} tập hoàn thành"
+  },
+
+  "phase": {
+    "setup": "Chuẩn bị",
+    "worldbuilding": "Xây dựng thế giới",
+    "scripting": "Viết kịch bản",
+    "production": "Sản xuất",
+    "completed": "Hoàn thành"
+  },
+
+  "importConflict": {
+    "title": "Phát hiện ID dự án trùng lặp",
+    "description": "ID dự án mà gói nhập chuẩn bị sử dụng",
+    "descriptionSuffix": "đã tồn tại. Bạn có thể ghi đè dự án hiện có hoặc tự động đổi tên khi nhập.",
+    "overwrite": "Ghi đè dự án hiện có",
+    "overwriteDesc": "Thay thế dữ liệu dự án hiện có bằng nội dung gói nhập",
+    "overwriteAriaLabel": "Ghi đè dự án hiện có",
+    "rename": "Tự động đổi tên khi nhập",
+    "renameDesc": "Giữ nguyên dự án hiện có; dự án nhập sẽ được cấp ID nội bộ mới",
+    "renameAriaLabel": "Tự động đổi tên khi nhập"
+  },
+
+  "importDiagnostics": {
+    "title": "Chẩn đoán nhập",
+    "description": "Kiểm tra trước khi nhập đã hoàn tất. Các vấn đề được nhóm theo mức độ nghiêm trọng; các vấn đề chặn phải được giải quyết trước khi tiếp tục nhập.",
+    "blocking": "Vấn đề chặn",
+    "autoFixable": "Tự động sửa được",
+    "warnings": "Cảnh báo"
+  },
+
+  "importToast": {
+    "success": "Dự án \"{{title}}\" đã được nhập",
+    "successWithFixes": "Dự án \"{{title}}\" đã được nhập, tự động sửa {{count}} mục",
+    "warning": "Cảnh báo nhập: {{messages}}",
+    "failed": "Nhập thất bại: {{detail}} ({{blocking}} vấn đề chặn, {{autoFixable}} tự động sửa được)",
+    "failedNoAutoFix": "Nhập thất bại: {{detail}} ({{blocking}} vấn đề chặn)"
+  },
+
+  "createModal": {
+    "title": "Dự án mới",
+    "projectTitle": "Tiêu đề dự án",
+    "titleRequired": "Tiêu đề dự án không được để trống",
+    "titlePlaceholder": "Ví dụ: Hoàng hậu uy vũ",
+    "titleHint": "Hệ thống sẽ tự động tạo ID dự án nội bộ dùng cho URL và lưu trữ tệp",
+    "contentMode": "Chế độ nội dung",
+    "modeNarration": "Thuyết minh + Hình ảnh",
+    "modeDrama": "Hoạt hình kịch",
+    "visualStyle": "Phong cách hình ảnh",
+    "stylePhotographic": "Chụp ảnh thực tế",
+    "styleAnime": "Anime",
+    "style3D": "Hoạt hình 3D",
+    "styleRefImage": "Ảnh tham chiếu phong cách",
+    "styleRefOptional": "(tùy chọn)",
+    "styleRefPreviewAlt": "Xem trước ảnh tham chiếu phong cách",
+    "uploadRefImage": "Tải ảnh tham chiếu",
+    "styleRefHint": "Đặc điểm phong cách sẽ được phân tích tự động để tạo ra hình ảnh nhất quán",
+    "creating": "Đang tạo...",
+    "createButton": "Tạo dự án",
+    "createFailed": "Tạo dự án thất bại: {{message}}",
+    "styleImageUploadFailed": "Tải ảnh tham chiếu phong cách thất bại; bạn có thể tải lại sau trong cài đặt dự án"
+  },
+
+  "openClaw": {
+    "title": "Hướng dẫn tích hợp OpenClaw",
+    "subtitle": "Kết nối ArcReel với OpenClaw AI Agent",
+    "closeAriaLabel": "Đóng",
+    "systemPrompt": "Học {{skillUrl}} rồi làm theo skill để hiểu cách tạo video với ArcReel",
+    "skillDocUrl": "URL tài liệu Skill:",
+    "copied": "Đã sao chép",
+    "copy": "Sao chép",
+    "usageSteps": "Các bước sử dụng",
+    "close": "Đóng",
+    "getApiToken": "Lấy API Token",
+    "step01Title": "Gửi prompt trên cho OpenClaw của bạn",
+    "step01Desc": "Sao chép prompt và dán vào OpenClaw để gửi",
+    "step02Title": "OpenClaw học năng lực từ tài liệu Skill",
+    "step02Desc": "OpenClaw sẽ tự động đọc tài liệu ArcReel Skill để lấy cách sử dụng tất cả công cụ và API có sẵn",
+    "step03Title": "OpenClaw tương tác với ArcReel để tạo video",
+    "step03Desc": "Mô tả nhu cầu sáng tạo của bạn và OpenClaw sẽ gọi ArcReel để quản lý dự án, tạo kịch bản và sản xuất video"
+  }
+}

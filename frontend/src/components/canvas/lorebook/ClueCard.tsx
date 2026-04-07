@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Puzzle } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
@@ -26,10 +27,7 @@ interface ClueCardProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const TYPE_LABELS: Record<string, string> = {
-  prop: "道具",
-  location: "环境",
-};
+
 
 // ---------------------------------------------------------------------------
 // ClueCard
@@ -44,6 +42,11 @@ export function ClueCard({
   onRestoreVersion,
   generating = false,
 }: ClueCardProps) {
+  const { t } = useTranslation(["canvas", "common"]);
+  const TYPE_LABELS: Record<string, string> = {
+    prop: t("clue.typeProp"),
+    location: t("clue.typeLocation"),
+  };
   const sheetFp = useProjectsStore(
     (s) => clue.clue_sheet ? s.getAssetFingerprint(clue.clue_sheet) : null,
   );
@@ -107,11 +110,11 @@ export function ClueCard({
 
         {clue.importance === "major" ? (
           <span className="shrink-0 rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-400 border border-indigo-500/20">
-            重要
+            {t("clue.importanceMajor")}
           </span>
         ) : (
           <span className="shrink-0 rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-400">
-            次要
+            {t("clue.importanceMinor")}
           </span>
         )}
       </div>
@@ -120,7 +123,7 @@ export function ClueCard({
       <div className="mb-4">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-            线索设计图
+            {t("clue.designImage")}
           </span>
           <VersionTimeMachine
             projectName={projectName}
@@ -130,21 +133,21 @@ export function ClueCard({
           />
         </div>
         <PreviewableImageFrame
-          src={sheetUrl && !imgError ? sheetUrl : null}
-          alt={`${name} 设计图`}
+src={sheetUrl && !imgError ? sheetUrl : null}
+          alt={t("clue.sheetAlt", { name })}
         >
           <AspectFrame ratio="16:9">
             {sheetUrl && !imgError ? (
               <img
                 src={sheetUrl}
-                alt={`${name} 设计图`}
+  alt={t("clue.sheetAlt", { name })}
                 className="h-full w-full object-cover"
                 onError={() => setImgError(true)}
               />
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
                 <Puzzle className="h-10 w-10" />
-                <span className="text-xs">点击生成</span>
+                <span className="text-xs">{t("clue.clickToGenerate")}</span>
               </div>
             )}
           </AspectFrame>
@@ -159,7 +162,7 @@ export function ClueCard({
         onInput={autoResize}
         rows={2}
         className="mb-3 w-full resize-none overflow-hidden bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
-        placeholder="输入线索描述..."
+placeholder={t("clue.descriptionPlaceholder")}
       />
 
       {isDirty && (
@@ -168,7 +171,7 @@ export function ClueCard({
           onClick={handleSave}
           className="mb-3 rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
         >
-          保存
+          {t("common:save")}
         </button>
       )}
 
@@ -176,7 +179,7 @@ export function ClueCard({
         <GenerateButton
           onClick={() => onGenerate(name)}
           loading={generating}
-          label={clue.clue_sheet ? "重新生成设计图" : "生成设计图"}
+label={clue.clue_sheet ? t("clue.regenerateDesign") : t("clue.generateDesign")}
           className="w-full justify-center"
         />
       )}

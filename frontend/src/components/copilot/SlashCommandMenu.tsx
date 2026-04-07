@@ -10,6 +10,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAssistantStore } from "@/stores/assistant-store";
 
 /** Lucide icon name → component mapping for icons provided by the API. */
@@ -23,15 +24,15 @@ const ICON_MAP: Record<string, LucideIcon> = {
   scissors: Scissors,
 };
 
-/** Fallback metadata when API doesn't provide label/icon. */
-const SKILL_META_FALLBACK: Record<string, { label: string; icon: LucideIcon }> = {
-  "manga-workflow":      { label: "视频工作流",   icon: Clapperboard },
-  "generate-script":     { label: "生成剧本",     icon: ScrollText },
-  "generate-storyboard": { label: "生成分镜图",   icon: LayoutGrid },
-  "generate-video":      { label: "生成视频",     icon: Film },
-  "generate-characters": { label: "生成角色图",   icon: Users },
-  "generate-clues":      { label: "生成线索图",   icon: Search },
-  "compose-video":       { label: "合成视频",     icon: Scissors },
+/** Fallback icon when API doesn't provide one. */
+const SKILL_ICON_FALLBACK: Record<string, LucideIcon> = {
+  "manga-workflow":      Clapperboard,
+  "generate-script":     ScrollText,
+  "generate-storyboard": LayoutGrid,
+  "generate-video":      Film,
+  "generate-characters": Users,
+  "generate-clues":      Search,
+  "compose-video":       Scissors,
 };
 
 export interface SlashCommandMenuHandle {
@@ -54,6 +55,7 @@ const MENU_ID = "slash-command-menu";
  */
 export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandMenuProps>(
   function SlashCommandMenu({ filter, onSelect }, ref) {
+    const { t } = useTranslation("copilot");
     const { skills } = useAssistantStore();
     const [activeIndex, setActiveIndex] = useState(0);
 
@@ -63,7 +65,7 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
       (s) =>
         s.name.toLowerCase().includes(query) ||
           s.description.toLowerCase().includes(query) ||
-          (s.label ?? SKILL_META_FALLBACK[s.name]?.label ?? "").includes(query),
+          (s.label ?? t(`skillFallback.${s.name}`, { defaultValue: "" })).includes(query),
     );
 
     // Reset active index when filter or list changes
@@ -110,13 +112,12 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
       <div
         id={MENU_ID}
         role="listbox"
-        aria-label="技能命令菜单"
+        aria-label={t("skillCommandMenu")}
         className="absolute bottom-full left-0 right-0 mb-1 max-h-52 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl"
       >
         {filtered.map((skill, i) => {
-          const fallback = SKILL_META_FALLBACK[skill.name];
-          const Icon = (skill.icon && ICON_MAP[skill.icon]) || fallback?.icon || Zap;
-          const label = skill.label || fallback?.label;
+          const Icon = (skill.icon && ICON_MAP[skill.icon]) || SKILL_ICON_FALLBACK[skill.name] || Zap;
+          const label = skill.label || t(`skillFallback.${skill.name}`, { defaultValue: "" });
           const isActive = i === activeIndex;
           return (
             <button

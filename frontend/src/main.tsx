@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { AppRoutes } from "./router";
 import { useAuthStore } from "@/stores/auth-store";
 
+import "@/i18n";
 import "./index.css";
 import "./css/styles.css";
 import "./css/app.css";

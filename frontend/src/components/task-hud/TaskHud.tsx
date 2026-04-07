@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Image, Video, Check, X, Loader2, ChevronDown } from "lucide-react";
@@ -61,11 +62,12 @@ function TaskRow({
   expandedErrorId: string | null;
   onToggleError: (taskId: string) => void;
 }) {
+  const { t } = useTranslation(["canvas"]);
   const statusLabel: Record<TaskItem["status"], string> = {
-    running: "生成中...",
-    queued: "排队中",
-    succeeded: "已完成",
-    failed: "失败",
+    running: t("taskHud.statusRunning"),
+    queued: t("taskHud.statusQueued"),
+    succeeded: t("taskHud.statusSucceeded"),
+    failed: t("taskHud.statusFailed"),
   };
 
   const statusColor: Record<TaskItem["status"], string> = {
@@ -162,6 +164,7 @@ function ChannelSection({
   icon: React.ComponentType<{ className?: string }>;
   tasks: TaskItem[];
 }) {
+  const { t } = useTranslation(["canvas"]);
   // 跟踪正在淡出的任务 ID
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
   // 跟踪已完全淡出（应隐藏）的任务 ID
@@ -228,7 +231,7 @@ function ChannelSection({
         {title}
         {running.length > 0 && (
           <span className="ml-auto text-indigo-400">
-            {running.length} 运行中
+  {t("taskHud.runningCount", { count: running.length })}
           </span>
         )}
       </div>
@@ -244,7 +247,7 @@ function ChannelSection({
         ))}
       </AnimatePresence>
       {visible.length === 0 && (
-        <div className="px-3 py-2 text-xs text-gray-600">暂无任务</div>
+<div className="px-3 py-2 text-xs text-gray-600">{t("taskHud.noTasks")}</div>
       )}
     </div>
   );
@@ -255,6 +258,7 @@ function ChannelSection({
 // ---------------------------------------------------------------------------
 
 export function TaskHud({ anchorRef }: { anchorRef: RefObject<HTMLElement | null> }) {
+  const { t } = useTranslation(["canvas"]);
   const { taskHudOpen, setTaskHudOpen } = useAppStore();
   const { tasks, stats } = useTasksStore();
   const { panelRef, positionStyle } = useAnchoredPopover({
@@ -287,27 +291,27 @@ export function TaskHud({ anchorRef }: { anchorRef: RefObject<HTMLElement | null
           {/* 统计栏 */}
           <div className="flex gap-3 border-b border-gray-800 px-3 py-2 text-xs text-gray-400">
             <span>
-              排队{" "}
+              {t("taskHud.statsQueued")}{" "}
               <strong className="text-gray-200">{stats.queued}</strong>
             </span>
             <span>
-              运行{" "}
+              {t("taskHud.statsRunning")}{" "}
               <strong className="text-indigo-400">{stats.running}</strong>
             </span>
             <span>
-              完成{" "}
+              {t("taskHud.statsSucceeded")}{" "}
               <strong className="text-emerald-400">{stats.succeeded}</strong>
             </span>
             <span>
-              失败{" "}
+              {t("taskHud.statsFailed")}{" "}
               <strong className="text-red-400">{stats.failed}</strong>
             </span>
           </div>
 
           {/* 双通道 */}
           <div className="max-h-80 divide-y divide-gray-800/50 overflow-y-auto">
-            <ChannelSection title="图片通道" icon={Image} tasks={imageTasks} />
-            <ChannelSection title="视频通道" icon={Video} tasks={videoTasks} />
+            <ChannelSection title={t("taskHud.imageChannel")} icon={Image} tasks={imageTasks} />
+            <ChannelSection title={t("taskHud.videoChannel")} icon={Video} tasks={videoTasks} />
           </div>
         </motion.div>
       )}
