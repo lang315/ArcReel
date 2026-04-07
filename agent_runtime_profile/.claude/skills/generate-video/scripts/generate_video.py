@@ -111,6 +111,7 @@ def get_supported_durations(project: dict) -> list[int]:
     if video_backend and isinstance(video_backend, str) and "/" in video_backend:
         try:
             from lib.config.registry import PROVIDER_REGISTRY
+
             provider_id, model_id = video_backend.split("/", 1)
             provider_meta = PROVIDER_REGISTRY.get(provider_id)
             if provider_meta:

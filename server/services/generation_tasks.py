@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from lib.config.resolver import ConfigResolver
 
 from lib import PROJECT_ROOT
+from lib.config.registry import PROVIDER_REGISTRY
 from lib.custom_provider import is_custom_provider
 from lib.db.base import DEFAULT_USER_ID
 from lib.gemini_shared import get_shared_rate_limiter
@@ -25,7 +26,6 @@ from lib.prompt_utils import (
     is_structured_video_prompt,
     video_prompt_to_yaml,
 )
-from lib.config.registry import PROVIDER_REGISTRY
 from lib.providers import PROVIDER_ARK, PROVIDER_GEMINI, PROVIDER_GROK, PROVIDER_OPENAI
 from lib.storyboard_sequence import (
     build_previous_storyboard_reference,
