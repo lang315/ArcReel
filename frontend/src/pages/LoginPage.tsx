@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { useAuthStore } from "@/stores/auth-store";
 import { LanguageSwitcher } from "@/components/layout/GlobalHeader";
+import i18n from "@/i18n";
 
 export function LoginPage() {
   const { t } = useTranslation(["auth", "common"]);
@@ -36,6 +37,9 @@ export function LoginPage() {
 
       const data = await resp.json();
       login(data.access_token, username);
+      if (data.language) {
+        void i18n.changeLanguage(data.language);
+      }
       setLocation("/app/projects");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth:loginFailed"));

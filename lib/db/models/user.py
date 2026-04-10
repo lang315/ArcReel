@@ -14,3 +14,4 @@ class User(TimestampMixin, Base):
     username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False, server_default="user")
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=sa.true())
+    language: Mapped[str] = mapped_column(String(10), nullable=False, server_default="zh")
