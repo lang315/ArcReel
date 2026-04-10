@@ -22,8 +22,8 @@ interface OpenClawModalProps {
 }
 
 export function OpenClawModal({ onClose }: OpenClawModalProps) {
+  const { t } = useTranslation("settings");
   const [, navigate] = useLocation();
-  const { t } = useTranslation("projects");
   const [copied, setCopied] = useState(false);
 
   // task 7.3：动态适配当前访问地址
@@ -33,31 +33,27 @@ export function OpenClawModal({ onClose }: OpenClawModalProps) {
   );
 
   const systemPrompt = useMemo(
-    () => t("openClaw.systemPrompt", { skillUrl }),
+    () => t("openClaw.systemPrompt", { url: skillUrl }),
     [skillUrl, t],
   );
 
-  // Steps data inside component so translations are reactive
-  const steps = useMemo(
-    () => [
-      {
-        step: "01",
-        title: t("openClaw.step01Title"),
-        desc: t("openClaw.step01Desc"),
-      },
-      {
-        step: "02",
-        title: t("openClaw.step02Title"),
-        desc: t("openClaw.step02Desc"),
-      },
-      {
-        step: "03",
-        title: t("openClaw.step03Title"),
-        desc: t("openClaw.step03Desc"),
-      },
-    ],
-    [t],
-  );
+  const steps = useMemo(() => [
+    {
+      step: "01",
+      title: t("openClaw.step01Title"),
+      desc: t("openClaw.step01Desc"),
+    },
+    {
+      step: "02",
+      title: t("openClaw.step02Title"),
+      desc: t("openClaw.step02Desc"),
+    },
+    {
+      step: "03",
+      title: t("openClaw.step03Title"),
+      desc: t("openClaw.step03Desc"),
+    },
+  ], [t]);
 
   const handleCopyPrompt = useCallback(async () => {
     await copyText(systemPrompt);
@@ -115,7 +111,7 @@ export function OpenClawModal({ onClose }: OpenClawModalProps) {
           {/* ——— Prompt 区域 ——— */}
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-400">Prompt</span>
+              <span className="text-xs font-medium text-gray-400">{t("openClaw.promptLabel")}</span>
               <button
                 type="button"
                 onClick={() => void handleCopyPrompt()}
@@ -124,12 +120,12 @@ export function OpenClawModal({ onClose }: OpenClawModalProps) {
                 {copied ? (
                   <>
                     <Check className="h-3 w-3 text-emerald-400" />
-                    {t("openClaw.copied")}
+                    {t("common:copied")}
                   </>
                 ) : (
                   <>
                     <Copy className="h-3 w-3" />
-                    {t("openClaw.copy")}
+                    {t("common:copy")}
                   </>
                 )}
               </button>
@@ -155,7 +151,7 @@ export function OpenClawModal({ onClose }: OpenClawModalProps) {
 
           {/* ——— 3 步说明 ——— */}
           <div>
-            <div className="mb-3 text-xs font-medium text-gray-400">{t("openClaw.usageSteps")}</div>
+            <div className="mb-3 text-xs font-medium text-gray-400">{t("openClaw.stepsTitle")}</div>
             <div className="space-y-2">
               {steps.map(({ step, title, desc }) => (
                 <div
@@ -181,7 +177,7 @@ export function OpenClawModal({ onClose }: OpenClawModalProps) {
               onClick={onClose}
               className="flex-1 rounded-xl border border-gray-700 bg-gray-800 px-4 py-2.5 text-sm text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-700"
             >
-              {t("openClaw.close")}
+              {t("common:close")}
             </button>
             <button
               type="button"

@@ -24,7 +24,7 @@ export function PendingQuestionWizard({
   error,
   onSubmitAnswers,
 }: PendingQuestionWizardProps) {
-  const { t } = useTranslation("copilot");
+  const { t } = useTranslation(["copilot"]);
   const pendingQuestions = pendingQuestion.questions;
   const [questionAnswers, setQuestionAnswers] = useState<Record<string, string | string[]>>({});
   const [questionCustomAnswers, setQuestionCustomAnswers] = useState<Record<string, string>>({});

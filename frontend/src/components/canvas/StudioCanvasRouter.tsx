@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Route, Switch, Redirect, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -12,7 +12,8 @@ import { AddCharacterForm } from "./lorebook/AddCharacterForm";
 import { AddClueForm } from "./lorebook/AddClueForm";
 import { API } from "@/api";
 import { buildEntityRevisionKey } from "@/utils/project-changes";
-import type { Clue } from "@/types";
+import { getProviderModels, getCustomProviderModels, lookupSupportedDurations } from "@/utils/provider-models";
+import type { Clue, CustomProviderInfo, ProviderInfo } from "@/types";
 
 // ---------------------------------------------------------------------------
 // StudioCanvasRouter — reads Zustand store data and renders the correct
@@ -20,37 +21,60 @@ import type { Clue } from "@/types";
 // ---------------------------------------------------------------------------
 
 export function StudioCanvasRouter() {
-  const { t } = useTranslation(["canvas", "common"]);
+  const { t } = useTranslation(["canvas"]);
   const { currentProjectData, currentProjectName, currentScripts } =
     useProjectsStore();
 
   const [addingCharacter, setAddingCharacter] = useState(false);
   const [addingClue, setAddingClue] = useState(false);
 
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([]);
+  const [globalVideoBackend, setGlobalVideoBackend] = useState("");
+
+  useEffect(() => {
+    let disposed = false;
+    Promise.all([getProviderModels(), getCustomProviderModels(), API.getSystemConfig()]).then(
+      ([provList, customList, configRes]) => {
+        if (disposed) return;
+        setProviders(provList);
+        setCustomProviders(customList);
+        setGlobalVideoBackend(configRes.settings?.default_video_backend ?? "");
+      },
+    ).catch(() => {});
+    return () => { disposed = true; };
+  }, []);
+
+  const durationOptions = useMemo(() => {
+    const backend = currentProjectData?.video_backend || globalVideoBackend;
+    if (!backend) return undefined;
+    return lookupSupportedDurations(providers, backend, customProviders);
+  }, [providers, customProviders, globalVideoBackend, currentProjectData?.video_backend]);
+
   // 从任务队列派生 loading 状态（替代本地 state）
   const tasks = useTasksStore((s) => s.tasks);
   const generatingCharacterNames = useMemo(() => {
     const names = new Set<string>();
-    for (const task of tasks) {
+    for (const t of tasks) {
       if (
-        task.task_type === "character" &&
-        task.project_name === currentProjectName &&
-        (task.status === "queued" || task.status === "running")
+        t.task_type === "character" &&
+        t.project_name === currentProjectName &&
+        (t.status === "queued" || t.status === "running")
       ) {
-        names.add(task.resource_id);
+        names.add(t.resource_id);
       }
     }
     return names;
   }, [tasks, currentProjectName]);
   const generatingClueNames = useMemo(() => {
     const names = new Set<string>();
-    for (const task of tasks) {
+    for (const t of tasks) {
       if (
-        task.task_type === "clue" &&
-        task.project_name === currentProjectName &&
-        (task.status === "queued" || task.status === "running")
+        t.task_type === "clue" &&
+        t.project_name === currentProjectName &&
+        (t.status === "queued" || t.status === "running")
       ) {
-        names.add(task.resource_id);
+        names.add(t.resource_id);
       }
     }
     return names;
@@ -252,6 +276,16 @@ export function StudioCanvasRouter() {
     }
   }, [currentProjectName, refreshProject]);
 
+  const handleGenerateGrid = useCallback(async (episode: number, scriptFile: string, sceneIds?: string[]) => {
+    if (!currentProjectName) return;
+    try {
+      const result = await API.generateGrid(currentProjectName, episode, scriptFile, sceneIds);
+      useAppStore.getState().pushToast(result.message, "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(t("grid.generateFailed", { message: (err as Error).message }), "error");
+    }
+  }, [currentProjectName]);
+
   const handleRestoreAsset = useCallback(async () => {
     await refreshProject();
   }, [refreshProject]);
@@ -261,7 +295,7 @@ export function StudioCanvasRouter() {
   if (!currentProjectName) {
     return (
       <div className="flex h-full items-center justify-center text-gray-500">
-        {t("common:loading")}
+        {t("router.loading")}
       </div>
     );
   }
@@ -345,9 +379,11 @@ export function StudioCanvasRouter() {
               episodeScript={script}
               scriptFile={scriptFile ?? undefined}
               projectData={currentProjectData}
+              durationOptions={durationOptions}
               onUpdatePrompt={handleUpdatePrompt}
               onGenerateStoryboard={handleGenerateStoryboard}
               onGenerateVideo={handleGenerateVideo}
+              onGenerateGrid={handleGenerateGrid}
               onRestoreStoryboard={handleRestoreAsset}
               onRestoreVideo={handleRestoreAsset}
             />

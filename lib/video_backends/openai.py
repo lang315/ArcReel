@@ -7,8 +7,10 @@ from pathlib import Path
 
 from lib.openai_shared import OPENAI_RETRYABLE_ERRORS, create_openai_client
 from lib.providers import PROVIDER_OPENAI
-from lib.retry import with_retry_async
+from lib.retry import DOWNLOAD_BACKOFF_SECONDS, DOWNLOAD_MAX_ATTEMPTS, with_retry_async
 from lib.video_backends.base import (
+    IMAGE_MIME_TYPES,
+    VideoCapabilities,
     VideoCapability,
     VideoGenerationRequest,
     VideoGenerationResult,
@@ -56,7 +58,10 @@ class OpenAIVideoBackend:
     def capabilities(self) -> set[VideoCapability]:
         return self._capabilities
 
-    @with_retry_async(retryable_errors=OPENAI_RETRYABLE_ERRORS)
+    @property
+    def video_capabilities(self) -> VideoCapabilities:
+        return VideoCapabilities(reference_images=True, max_reference_images=3)
+
     async def generate(self, request: VideoGenerationRequest) -> VideoGenerationResult:
         kwargs: dict = {
             "prompt": request.prompt,
@@ -65,17 +70,27 @@ class OpenAIVideoBackend:
             "size": _resolve_size(request.resolution, request.aspect_ratio),
         }
 
+        # 收集所有参考图：start_image + reference_images
+        refs = []
         if request.start_image and Path(request.start_image).exists():
-            kwargs["input_reference"] = _encode_start_image(request.start_image)
+            refs.append(_encode_start_image(Path(request.start_image)))
+        if request.reference_images:
+            for ref_path in request.reference_images:
+                p = Path(ref_path) if not isinstance(ref_path, Path) else ref_path
+                if p.exists():
+                    refs.append(_encode_start_image(p))
+        if refs:
+            # 单张图时保持 tuple 格式（API 兼容），多张时用 list
+            kwargs["input_reference"] = refs[0] if len(refs) == 1 else refs
 
         logger.info("OpenAI 视频生成开始: model=%s, seconds=%s", self._model, kwargs["seconds"])
 
-        video = await self._client.videos.create_and_poll(**kwargs)
+        video = await self._create_video(**kwargs)
 
         if video.status == "failed":
             raise RuntimeError(f"Sora 视频生成失败: {video.error}")
 
-        content = await self._client.videos.download_content(video.id)
+        content = await self._download_content_with_retry(video.id)
         request.output_path.parent.mkdir(parents=True, exist_ok=True)
         request.output_path.write_bytes(content.content)
 
@@ -85,9 +100,23 @@ class OpenAIVideoBackend:
             video_path=request.output_path,
             provider=PROVIDER_OPENAI,
             model=self._model,
-            duration_seconds=int(video.seconds),
+            duration_seconds=int(video.seconds if video.seconds is not None else kwargs["seconds"]),
             task_id=video.id,
         )
+
+    @with_retry_async(retryable_errors=OPENAI_RETRYABLE_ERRORS)
+    async def _create_video(self, **kwargs):
+        """视频生成（create_and_poll），带独立重试。"""
+        return await self._client.videos.create_and_poll(**kwargs)
+
+    @with_retry_async(
+        max_attempts=DOWNLOAD_MAX_ATTEMPTS,
+        backoff_seconds=DOWNLOAD_BACKOFF_SECONDS,
+        retryable_errors=OPENAI_RETRYABLE_ERRORS,
+    )
+    async def _download_content_with_retry(self, video_id: str):
+        """单独重试内容下载，避免因下载失败重新触发视频生成。"""
+        return await self._client.videos.download_content(video_id)
 
 
 def _map_duration(seconds: int) -> str:
@@ -99,11 +128,6 @@ def _map_duration(seconds: int) -> str:
         return "12"
 
 
-def _encode_start_image(image_path: Path) -> dict:
-    from lib.image_backends.base import image_to_base64_data_uri
-
-    data_uri = image_to_base64_data_uri(Path(image_path))
-    return {
-        "type": "image_url",
-        "image_url": data_uri,
-    }
+def _encode_start_image(image_path: Path) -> tuple[str, bytes, str]:
+    mime = IMAGE_MIME_TYPES.get(image_path.suffix.lower(), "image/png")
+    return (image_path.name, image_path.read_bytes(), mime)

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
 from lib.ark_shared import ARK_BASE_URL, create_ark_client, resolve_ark_api_key
 from lib.providers import PROVIDER_ARK
@@ -60,8 +59,6 @@ class ArkTextBackend:
 
     @with_retry_async()
     async def generate(self, request: TextGenerationRequest) -> TextGenerationResult:
-        if request.images:
-            return await self._generate_vision(request)
         if request.response_schema:
             return await self._generate_structured(request)
         return await self._generate_plain(request)
@@ -103,75 +100,37 @@ class ArkTextBackend:
 
     async def _structured_fallback(self, request: TextGenerationRequest, messages: list[dict]) -> TextGenerationResult:
         """Instructor / json_object 降级路径。"""
-        from lib.text_backends.instructor_support import generate_structured_via_instructor, inject_json_instruction
+        from lib.text_backends.instructor_support import instructor_fallback_sync
 
-        if isinstance(request.response_schema, type):
-            json_text, input_tokens, output_tokens = await asyncio.to_thread(
-                generate_structured_via_instructor,
-                client=self._openai_client,
-                model=self._model,
-                messages=messages,
-                response_model=request.response_schema,
-            )
-            return TextGenerationResult(
-                text=json_text,
-                provider=PROVIDER_ARK,
-                model=self._model,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-            )
-        else:
-            logger.info("response_schema 为 dict，回退到 json_object 模式")
-            fb_messages = inject_json_instruction(messages)
-            response = await asyncio.to_thread(
-                self._openai_client.chat.completions.create,
-                model=self._model,
-                messages=fb_messages,
-                response_format={"type": "json_object"},
-            )
-            return self._parse_chat_response(response)
-
-    async def _generate_vision(self, request: TextGenerationRequest) -> TextGenerationResult:
-        content: list[dict[str, Any]] = []
-        for img in request.images or []:
-            if img.path:
-                from lib.image_backends.base import image_to_base64_data_uri
-
-                data_uri = image_to_base64_data_uri(img.path)
-                content.append({"type": "input_image", "image_url": data_uri})
-            elif img.url:
-                content.append({"type": "input_image", "image_url": img.url})
-
-        content.append({"type": "input_text", "text": request.prompt})
-
-        messages: list[dict] = []
-        if request.system_prompt:
-            messages.append({"role": "system", "content": request.system_prompt})
-        messages.append({"role": "user", "content": content})
-
-        response = await asyncio.to_thread(
-            self._client.responses.create,
+        return await asyncio.to_thread(
+            instructor_fallback_sync,
+            client=self._openai_client,
             model=self._model,
-            input=messages,
-        )
-
-        text = response.output_text if hasattr(response, "output_text") else str(response)
-        input_tokens = getattr(getattr(response, "usage", None), "input_tokens", None)
-        output_tokens = getattr(getattr(response, "usage", None), "output_tokens", None)
-
-        return TextGenerationResult(
-            text=text.strip() if isinstance(text, str) else str(text),
+            messages=messages,
+            response_schema=request.response_schema,
             provider=PROVIDER_ARK,
-            model=self._model,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
         )
 
     def _build_messages(self, request: TextGenerationRequest) -> list[dict]:
         messages: list[dict] = []
         if request.system_prompt:
             messages.append({"role": "system", "content": request.system_prompt})
-        messages.append({"role": "user", "content": request.prompt})
+
+        if request.images:
+            from lib.image_backends.base import image_to_base64_data_uri
+
+            content: list[dict] = []
+            for img in request.images:
+                if img.path:
+                    data_uri = image_to_base64_data_uri(img.path)
+                    content.append({"type": "image_url", "image_url": {"url": data_uri}})
+                elif img.url:
+                    content.append({"type": "image_url", "image_url": {"url": img.url}})
+            content.append({"type": "text", "text": request.prompt})
+            messages.append({"role": "user", "content": content})
+        else:
+            messages.append({"role": "user", "content": request.prompt})
+
         return messages
 
     def _parse_chat_response(self, response) -> TextGenerationResult:

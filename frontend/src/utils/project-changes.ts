@@ -1,15 +1,18 @@
+import i18n from "@/i18n";
 import type { ProjectChange } from "@/types";
 
 const GROUP_NAME_LIMIT = 5;
 
-const ENTITY_LABELS: Record<ProjectChange["entity_type"], string> = {
-  project: "项目",
-  character: "角色",
-  clue: "线索",
-  segment: "分镜",
-  episode: "剧集",
-  overview: "项目概览",
-  draft: "预处理",
+type EntityType = ProjectChange["entity_type"];
+
+const ENTITY_LABEL_KEYS: Record<EntityType, string> = {
+  project: "entityLabels.project",
+  character: "entityLabels.character",
+  clue: "entityLabels.clue",
+  segment: "entityLabels.segment",
+  episode: "entityLabels.episode",
+  overview: "entityLabels.overview",
+  draft: "entityLabels.draft",
 };
 
 export interface GroupedProjectChange {
@@ -64,12 +67,12 @@ export function groupChangesByType(
 
 function getEntityLabel(group: GroupedProjectChange): string {
   if (group.action === "storyboard_ready") {
-    return "分镜图";
+    return i18n.t("entityLabels.storyboard");
   }
   if (group.action === "video_ready") {
-    return "视频";
+    return i18n.t("entityLabels.video");
   }
-  return ENTITY_LABELS[group.entityType] ?? "内容";
+  return i18n.t(ENTITY_LABEL_KEYS[group.entityType] ?? "entityLabels.content");
 }
 
 function getChangeListLabel(change: ProjectChange): string {
@@ -85,40 +88,40 @@ function getChangeListLabel(change: ProjectChange): string {
 
 function summarizeGroupNames(group: GroupedProjectChange): string {
   const names = group.changes.slice(0, GROUP_NAME_LIMIT).map(getChangeListLabel);
-  const suffix = group.changes.length > GROUP_NAME_LIMIT ? "…等" : "";
-  return `${names.join("、")}${suffix}`;
+  const suffix = group.changes.length > GROUP_NAME_LIMIT ? i18n.t("notifications.etc") : "";
+  return `${names.join(i18n.t("notifications.listSeparator"))}${suffix}`;
 }
 
 function formatSingleNotificationText(change: ProjectChange): string {
   if (change.action === "storyboard_ready") {
-    return `${change.label}的分镜图已生成`;
+    return i18n.t("notifications.storyboardReady", { label: change.label });
   }
   if (change.action === "video_ready") {
-    return `${change.label}的视频已生成`;
+    return i18n.t("notifications.videoReady", { label: change.label });
   }
   if (change.action === "created") {
-    return `${change.label}已创建`;
+    return i18n.t("notifications.created", { label: change.label });
   }
   if (change.action === "deleted") {
-    return `${change.label}已删除`;
+    return i18n.t("notifications.deleted", { label: change.label });
   }
-  return `${change.label}已更新`;
+  return i18n.t("notifications.updated", { label: change.label });
 }
 
 function formatSingleDeferredText(change: ProjectChange): string {
   if (change.action === "storyboard_ready") {
-    return `AI 刚生成了 ${change.label} 的分镜图，点击查看`;
+    return i18n.t("deferred.storyboardReady", { label: change.label });
   }
   if (change.action === "video_ready") {
-    return `AI 刚生成了 ${change.label} 的视频，点击查看`;
+    return i18n.t("deferred.videoReady", { label: change.label });
   }
   if (change.action === "created") {
-    return `AI 刚新增了 ${change.label}，点击查看`;
+    return i18n.t("deferred.created", { label: change.label });
   }
   if (change.action === "deleted") {
-    return `AI 刚删除了 ${change.label}，点击查看`;
+    return i18n.t("deferred.deleted", { label: change.label });
   }
-  return `AI 刚更新了 ${change.label}，点击查看`;
+  return i18n.t("deferred.updated", { label: change.label });
 }
 
 export function formatGroupedNotificationText(
@@ -129,19 +132,19 @@ export function formatGroupedNotificationText(
   }
 
   const count = group.changes.length;
-  const entityLabel = getEntityLabel(group);
+  const entity = getEntityLabel(group);
   const summary = summarizeGroupNames(group);
 
   if (group.action === "storyboard_ready" || group.action === "video_ready") {
-    return `已生成 ${count} 个${entityLabel}：${summary}`;
+    return i18n.t("notifications.storyboardReadyMulti", { count, entity, summary });
   }
   if (group.action === "created") {
-    return `新增了 ${count} 个${entityLabel}：${summary}`;
+    return i18n.t("notifications.createdMulti", { count, entity, summary });
   }
   if (group.action === "deleted") {
-    return `删除了 ${count} 个${entityLabel}：${summary}`;
+    return i18n.t("notifications.deletedMulti", { count, entity, summary });
   }
-  return `更新了 ${count} 个${entityLabel}：${summary}`;
+  return i18n.t("notifications.updatedMulti", { count, entity, summary });
 }
 
 export function formatGroupedDeferredText(
@@ -152,17 +155,17 @@ export function formatGroupedDeferredText(
   }
 
   const count = group.changes.length;
-  const entityLabel = getEntityLabel(group);
+  const entity = getEntityLabel(group);
   const summary = summarizeGroupNames(group);
 
   if (group.action === "storyboard_ready" || group.action === "video_ready") {
-    return `AI 刚生成了 ${count} 个${entityLabel}：${summary}，点击查看`;
+    return i18n.t("deferred.storyboardReadyMulti", { count, entity, summary });
   }
   if (group.action === "created") {
-    return `AI 刚新增了 ${count} 个${entityLabel}：${summary}，点击查看`;
+    return i18n.t("deferred.createdMulti", { count, entity, summary });
   }
   if (group.action === "deleted") {
-    return `AI 刚删除了 ${count} 个${entityLabel}：${summary}，点击查看`;
+    return i18n.t("deferred.deletedMulti", { count, entity, summary });
   }
-  return `AI 刚更新了 ${count} 个${entityLabel}：${summary}，点击查看`;
+  return i18n.t("deferred.updatedMulti", { count, entity, summary });
 }

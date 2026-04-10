@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { API } from "@/api";
+import i18n from "@/i18n";
 
 // ---------------------------------------------------------------------------
 // ConfigIssue
@@ -26,7 +27,7 @@ async function getConfigIssues(): Promise<ConfigIssue[]> {
     issues.push({
       key: "anthropic",
       tab: "agent",
-      label: "ArcReel 智能体 API Key（Anthropic）未配置",
+      label: i18n.t("configIssues.anthropicNotConfigured"),
     });
   }
 
@@ -40,21 +41,21 @@ async function getConfigIssues(): Promise<ConfigIssue[]> {
     issues.push({
       key: "no-video-provider",
       tab: "providers",
-      label: "未配置支持视频生成的供应商",
+      label: i18n.t("configIssues.noVideoProvider"),
     });
   }
   if (!hasMediaType("image")) {
     issues.push({
       key: "no-image-provider",
       tab: "providers",
-      label: "未配置支持图片生成的供应商",
+      label: i18n.t("configIssues.noImageProvider"),
     });
   }
   if (!hasMediaType("text")) {
     issues.push({
       key: "no-text-provider",
       tab: "providers",
-      label: "未配置支持文本生成的供应商",
+      label: i18n.t("configIssues.noTextProvider"),
     });
   }
 
