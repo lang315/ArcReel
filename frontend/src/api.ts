@@ -1486,6 +1486,14 @@ class API {
       { method: "POST" }
     );
   }
+
+  static async updateLanguage(language: string): Promise<{ ok: boolean; language: string }> {
+    return this.request("/auth/language", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language }),
+    });
+  }
 }
 
 export { API };

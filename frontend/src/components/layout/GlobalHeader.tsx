@@ -457,6 +457,8 @@ export function LanguageSwitcher() {
               }`}
               onClick={() => {
                 void i18n.changeLanguage(lang.code);
+                // Persist to backend (fire-and-forget)
+                void API.updateLanguage(lang.code).catch(() => {});
                 setOpen(false);
               }}
             >
