@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { Loader2, Plus, FolderOpen, Upload, AlertTriangle, Settings } from "lucide-react";
+import { Loader2, Plus, FolderOpen, Upload, AlertTriangle, Settings, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { API } from "@/api";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -8,6 +8,7 @@ import { useAppStore } from "@/stores/app-store";
 import { useConfigStatusStore } from "@/stores/config-status-store";
 import { CreateProjectModal } from "./CreateProjectModal";
 import { OpenClawModal } from "./OpenClawModal";
+import { LanguageSwitcher } from "@/components/layout/GlobalHeader";
 import { ArchiveDiagnosticsDialog } from "@/components/shared/ArchiveDiagnosticsDialog";
 import type {
   ImportConflictPolicy,
@@ -434,6 +435,7 @@ export function ProjectsPage() {
               >
                 🦞
               </button>
+              <LanguageSwitcher />
               <button
                 type="button"
                 onClick={() => navigate("/app/settings")}

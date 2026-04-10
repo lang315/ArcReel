@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { useAuthStore } from "@/stores/auth-store";
+import { LanguageSwitcher } from "@/components/layout/GlobalHeader";
 
 export function LoginPage() {
   const { t } = useTranslation(["auth", "common"]);
@@ -45,6 +46,10 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-950">
+      {/* Language switcher — top right corner */}
+      <div className="fixed top-4 right-4">
+        <LanguageSwitcher />
+      </div>
       <div className="w-full max-w-sm rounded-xl border border-gray-800 bg-gray-900 p-8 shadow-2xl">
         <h1 className="mb-6 flex items-center justify-center gap-2 text-xl font-semibold text-gray-100">
           <img src="/android-chrome-192x192.png" alt="ArcReel" className="h-7 w-7" />
