@@ -1,7 +1,6 @@
 {
   "pageNotFound": "页面未找到",
   "backToHome": "返回首页",
-
   "header": {
     "title": "项目",
     "importZip": "导入 ZIP",
@@ -11,13 +10,11 @@
     "systemSettings": "系统配置",
     "configIncomplete": "配置不完整"
   },
-
   "list": {
     "loading": "加载项目列表...",
     "empty": "暂无项目",
     "emptyHint": "点击右上角「新建项目」或「导入 ZIP」开始创作"
   },
-
   "card": {
     "noStyle": "未设置风格",
     "progress": "进度",
@@ -28,7 +25,6 @@
     "episodesInProduction": " · {{count}} 集制作中",
     "episodesCompleted": " · {{count}} 集已完成"
   },
-
   "phase": {
     "setup": "准备中",
     "worldbuilding": "世界观",
@@ -36,7 +32,6 @@
     "production": "制作中",
     "completed": "已完成"
   },
-
   "importConflict": {
     "title": "检测到项目编号重复",
     "description": "导入包准备使用的项目编号",
@@ -48,7 +43,6 @@
     "renameDesc": "保留现有项目，新导入项目自动生成新的内部编号",
     "renameAriaLabel": "自动重命名导入"
   },
-
   "importDiagnostics": {
     "title": "导入诊断",
     "description": "导入已完成预检查。以下问题按严重程度分组展示，阻断问题解决前不会继续导入。",
@@ -56,7 +50,6 @@
     "autoFixable": "可自动修复",
     "warnings": "警告"
   },
-
   "importToast": {
     "success": "项目 \"{{title}}\" 已导入",
     "successWithFixes": "项目 \"{{title}}\" 已导入，自动修复 {{count}} 项",
@@ -64,7 +57,6 @@
     "failed": "导入失败: {{detail}}（{{blocking}} 个阻断问题，{{autoFixable}} 个可自动修复）",
     "failedNoAutoFix": "导入失败: {{detail}}（{{blocking}} 个阻断问题）"
   },
-
   "createModal": {
     "title": "新建项目",
     "projectTitle": "项目标题",
@@ -86,9 +78,29 @@
     "creating": "创建中...",
     "createButton": "创建项目",
     "createFailed": "创建项目失败: {{message}}",
-    "styleImageUploadFailed": "风格参考图上传失败，可稍后在项目设置中重新上传"
+    "styleImageUploadFailed": "风格参考图上传失败，可稍后在项目设置中重新上传",
+    "narration": "说书+画面",
+    "drama": "剧集动画",
+    "aspectRatio": "画面比例",
+    "portrait": "竖屏 9:16",
+    "landscape": "横屏 16:9",
+    "defaultDuration": "默认时长",
+    "defaultDurationHint": "由 AI 根据内容自动决定时长，或指定固定时长",
+    "defaultDurationAriaLabel": "默认时长",
+    "photographic": "写实摄影",
+    "anime": "动漫风格",
+    "animation3d": "3D 动画",
+    "generationMode": "分镜生成模式",
+    "generationModeHint": "宫格模式按段落分组一次生成，首尾帧链式衔接，画风更一致",
+    "singleMode": "逐张生成",
+    "gridMode": "宫格生成",
+    "styleImage": "风格参考图",
+    "styleImageOptional": "（可选）",
+    "styleImagePreviewAlt": "风格参考图预览",
+    "uploadImage": "上传参考图片",
+    "styleImageHint": "上传后将自动分析风格特征，用于生成一致的画面",
+    "createProject": "创建项目"
   },
-
   "openClaw": {
     "title": "OpenClaw 集成指南",
     "subtitle": "将 ArcReel 接入 OpenClaw AI Agent",

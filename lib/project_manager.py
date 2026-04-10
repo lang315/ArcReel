@@ -10,8 +10,10 @@ import logging
 import os
 import re
 import secrets
+import tempfile
 import unicodedata
 from collections.abc import Callable
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -51,6 +53,7 @@ class ProjectManager:
         "videos",
         "thumbnails",
         "output",
+        "grids",
     ]
 
     # 项目元数据文件名
@@ -486,9 +489,12 @@ class ProjectManager:
         """
         return {
             "storyboard_image": None,
+            "storyboard_last_image": None,
             "video_clip": None,
             "video_thumbnail": None,
             "video_uri": None,
+            "grid_id": None,
+            "grid_cell_index": None,
             "status": "pending",
         }
 
@@ -796,6 +802,59 @@ class ProjectManager:
 
         raise KeyError(f"场景 '{scene_id}' 不存在")
 
+    def batch_update_scene_assets(
+        self,
+        project_name: str,
+        script_filename: str,
+        updates: list[tuple[str, str, Any]],
+    ) -> dict:
+        """批量更新多个场景的生成资源路径（单次读写）。
+
+        Args:
+            project_name: 项目名称
+            script_filename: 剧本文件名
+            updates: 列表，每项为 (scene_id, asset_type, asset_path)
+
+        Returns:
+            更新后的剧本
+        """
+        if not updates:
+            return {}
+
+        script = self.load_script(project_name, script_filename)
+
+        content_mode = script.get("content_mode", "narration")
+        if content_mode == "narration" and "segments" in script:
+            items = script["segments"]
+            id_field = "segment_id"
+        else:
+            items = script.get("scenes", [])
+            id_field = "scene_id"
+
+        # 建立 scene_id → item 索引，避免 O(N*M) 查找
+        item_by_id: dict[str, dict] = {str(item.get(id_field)): item for item in items}
+
+        for scene_id, asset_type, asset_path in updates:
+            item = item_by_id.get(str(scene_id))
+            if item is None:
+                continue
+
+            assets = item.get("generated_assets")
+            if not isinstance(assets, dict):
+                assets = {}
+                item["generated_assets"] = assets
+
+            assets_template = self.create_generated_assets(content_mode)
+            for key, default_value in assets_template.items():
+                if key not in assets:
+                    assets[key] = default_value
+
+            assets[asset_type] = asset_path
+            self.update_scene_status(item)
+
+        self.save_script(project_name, script, script_filename)
+        return script
+
     def get_pending_scenes(self, project_name: str, script_filename: str, asset_type: str) -> list[dict]:
         """
         获取待处理的场景/片段列表
@@ -893,6 +952,47 @@ class ProjectManager:
         with open(project_file, encoding="utf-8") as f:
             return json.load(f)
 
+    @contextmanager
+    def _project_lock(self, project_name: str):
+        """通过专用 lock file 获取项目元数据的排他锁。
+
+        使用独立的 .project.json.lock 而非数据文件本身，避免 os.replace
+        更换 inode 后锁失效的问题。
+        """
+        lock_path = self._get_project_file_path(project_name).with_suffix(".lock")
+        lock_path.touch(exist_ok=True)
+        fd = open(lock_path)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            fd.close()
+
+    @staticmethod
+    def _atomic_write_json(path: Path, data: dict) -> None:
+        """通过临时文件 + os.replace 原子写入 JSON。"""
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=str(path.parent),
+                prefix=".project.",
+                suffix=".tmp",
+                delete=False,
+            ) as tmp:
+                json.dump(data, tmp, ensure_ascii=False, indent=2)
+                tmp_path = Path(tmp.name)
+            os.replace(tmp_path, path)
+            tmp_path = None
+        finally:
+            if tmp_path is not None:
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+
     def save_project(self, project_name: str, project: dict) -> Path:
         """
         保存项目元数据
@@ -908,8 +1008,8 @@ class ProjectManager:
 
         self._touch_metadata(project)
 
-        with open(project_file, "w", encoding="utf-8") as f:
-            json.dump(project, f, ensure_ascii=False, indent=2)
+        with self._project_lock(project_name):
+            self._atomic_write_json(project_file, project)
 
         emit_project_change_hint(
             project_name,
@@ -923,7 +1023,7 @@ class ProjectManager:
         project_name: str,
         mutate_fn: Callable[[dict], None],
     ) -> Path:
-        """原子性地更新 project.json：加文件锁 → 读 → 修改 → 写回。
+        """原子性地更新 project.json：加文件锁 → 读 → 修改 → 原子写回。
 
         避免并发任务（如同时生成多张角色图片）之间的 lost-update 竞态。
 
@@ -933,18 +1033,12 @@ class ProjectManager:
         """
         project_file = self._get_project_file_path(project_name)
 
-        with open(project_file, "r+", encoding="utf-8") as f:
-            fcntl.flock(f, fcntl.LOCK_EX)
-            try:
+        with self._project_lock(project_name):
+            with open(project_file, encoding="utf-8") as f:
                 project = json.load(f)
-                mutate_fn(project)
-                self._touch_metadata(project)
-
-                f.seek(0)
-                json.dump(project, f, ensure_ascii=False, indent=2)
-                f.truncate()
-            finally:
-                fcntl.flock(f, fcntl.LOCK_UN)
+            mutate_fn(project)
+            self._touch_metadata(project)
+            self._atomic_write_json(project_file, project)
 
         emit_project_change_hint(
             project_name,
@@ -967,6 +1061,8 @@ class ProjectManager:
         title: str | None = None,
         style: str | None = None,
         content_mode: str = "narration",
+        aspect_ratio: str = "9:16",
+        default_duration: int | None = None,
     ) -> dict:
         """
         创建新的项目元数据文件
@@ -976,6 +1072,8 @@ class ProjectManager:
             title: 项目标题，留空时默认使用项目标识
             style: 整体视觉风格描述
             content_mode: 内容模式 ('narration' 或 'drama')
+            aspect_ratio: 视频宽高比（独立于 content_mode）
+            default_duration: 默认视频时长（秒），None 表示使用系统默认值
 
         Returns:
             项目元数据字典
@@ -986,6 +1084,7 @@ class ProjectManager:
         project = {
             "title": project_title or project_name,
             "content_mode": content_mode,
+            "aspect_ratio": aspect_ratio,
             "style": style or "",
             "episodes": [],
             "characters": {},
@@ -995,6 +1094,8 @@ class ProjectManager:
                 "updated_at": datetime.now().isoformat(),
             },
         }
+        if default_duration is not None:
+            project["default_duration"] = default_duration
 
         self.save_project(project_name, project)
         return project

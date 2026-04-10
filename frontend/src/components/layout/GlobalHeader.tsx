@@ -228,6 +228,7 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
   };
 
   return (
+    <>
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-gray-800 bg-gray-900/80 px-4 backdrop-blur-sm">
       {/* ---- Left section ---- */}
       <div className="flex items-center gap-3">
@@ -396,19 +397,21 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
 
       </div>
 
-      {exportDiagnostics !== null && (
-        <ArchiveDiagnosticsDialog
-          title={t("layout:export.diagnosticsTitle")}
-          description={t("layout:export.diagnosticsDescription")}
-          sections={[
-            { key: "blocking", title: t("layout:export.blockingIssues"), tone: "border-red-400/25 bg-red-500/10 text-red-100", items: exportDiagnostics.blocking },
-            { key: "auto_fixed", title: t("layout:export.autoFixed"), tone: "border-indigo-400/25 bg-indigo-500/10 text-indigo-100", items: exportDiagnostics.auto_fixed },
-            { key: "warnings", title: t("layout:export.warnings"), tone: "border-amber-400/25 bg-amber-500/10 text-amber-100", items: exportDiagnostics.warnings },
-          ]}
-          onClose={() => setExportDiagnostics(null)}
-        />
-      )}
     </header>
+
+    {exportDiagnostics !== null && (
+      <ArchiveDiagnosticsDialog
+        title={t("layout:export.diagnosticsTitle")}
+        description={t("layout:export.diagnosticsDescription")}
+        sections={[
+          { key: "blocking", title: t("layout:export.blockingIssues"), tone: "border-red-400/25 bg-red-500/10 text-red-100", items: exportDiagnostics.blocking },
+          { key: "auto_fixed", title: t("layout:export.autoFixed"), tone: "border-indigo-400/25 bg-indigo-500/10 text-indigo-100", items: exportDiagnostics.auto_fixed },
+          { key: "warnings", title: t("layout:export.warnings"), tone: "border-amber-400/25 bg-amber-500/10 text-amber-100", items: exportDiagnostics.warnings },
+        ]}
+        onClose={() => setExportDiagnostics(null)}
+      />
+    )}
+    </>
   );
 }
 

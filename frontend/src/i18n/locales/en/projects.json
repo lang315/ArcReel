@@ -1,7 +1,6 @@
 {
   "pageNotFound": "Page not found",
   "backToHome": "Back to home",
-
   "header": {
     "title": "Projects",
     "importZip": "Import ZIP",
@@ -11,13 +10,11 @@
     "systemSettings": "System Settings",
     "configIncomplete": "Configuration incomplete"
   },
-
   "list": {
     "loading": "Loading projects...",
     "empty": "No projects yet",
     "emptyHint": "Click 'New Project' or 'Import ZIP' in the top-right corner to get started"
   },
-
   "card": {
     "noStyle": "No style set",
     "progress": "Progress",
@@ -28,7 +25,6 @@
     "episodesInProduction": " · {{count}} in production",
     "episodesCompleted": " · {{count}} completed"
   },
-
   "phase": {
     "setup": "Setup",
     "worldbuilding": "Worldbuilding",
@@ -36,7 +32,6 @@
     "production": "Production",
     "completed": "Completed"
   },
-
   "importConflict": {
     "title": "Duplicate project ID detected",
     "description": "The project ID intended for import",
@@ -48,7 +43,6 @@
     "renameDesc": "Keep the existing project; the imported project will receive a new internal ID",
     "renameAriaLabel": "Auto-rename on import"
   },
-
   "importDiagnostics": {
     "title": "Import Diagnostics",
     "description": "Pre-import checks completed. Issues are grouped by severity; blocking issues must be resolved before import can continue.",
@@ -56,7 +50,6 @@
     "autoFixable": "Auto-fixable",
     "warnings": "Warnings"
   },
-
   "importToast": {
     "success": "Project \"{{title}}\" imported",
     "successWithFixes": "Project \"{{title}}\" imported, {{count}} issue(s) auto-fixed",
@@ -64,13 +57,12 @@
     "failed": "Import failed: {{detail}} ({{blocking}} blocking, {{autoFixable}} auto-fixable)",
     "failedNoAutoFix": "Import failed: {{detail}} ({{blocking}} blocking)"
   },
-
   "createModal": {
     "title": "New Project",
     "projectTitle": "Project Title",
-    "titleRequired": "Project title cannot be empty",
-    "titlePlaceholder": "e.g. The Empress Rises",
-    "titleHint": "An internal project ID will be auto-generated for URLs and file storage",
+    "titleRequired": "Project title is required",
+    "titlePlaceholder": "e.g. The Rebirth of a Queen",
+    "titleHint": "The system will generate an internal identifier for URLs and file storage",
     "contentMode": "Content Mode",
     "modeNarration": "Narration + Visuals",
     "modeDrama": "Drama Animation",
@@ -86,9 +78,29 @@
     "creating": "Creating...",
     "createButton": "Create Project",
     "createFailed": "Failed to create project: {{message}}",
-    "styleImageUploadFailed": "Style reference image upload failed; you can re-upload later in project settings"
+    "styleImageUploadFailed": "Style image upload failed. You can re-upload later in project settings",
+    "narration": "Narration + Visual",
+    "drama": "Drama Animation",
+    "aspectRatio": "Aspect Ratio",
+    "portrait": "Portrait 9:16",
+    "landscape": "Landscape 16:9",
+    "defaultDuration": "Default Duration",
+    "defaultDurationHint": "Let AI decide duration based on content, or specify a fixed duration",
+    "defaultDurationAriaLabel": "Default duration",
+    "photographic": "Photographic",
+    "anime": "Anime",
+    "animation3d": "3D Animation",
+    "generationMode": "Storyboard Generation Mode",
+    "generationModeHint": "Grid mode generates per paragraph group with first/last frame chaining for more consistent style",
+    "singleMode": "Single",
+    "gridMode": "Grid",
+    "styleImage": "Style Reference Image",
+    "styleImageOptional": "(optional)",
+    "styleImagePreviewAlt": "Style reference preview",
+    "uploadImage": "Upload reference image",
+    "styleImageHint": "Style features will be automatically analyzed to generate consistent visuals",
+    "createProject": "Create Project"
   },
-
   "openClaw": {
     "title": "OpenClaw Integration Guide",
     "subtitle": "Connect ArcReel to OpenClaw AI Agent",

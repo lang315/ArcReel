@@ -48,7 +48,8 @@ interface CreateModalProps {
 }
 
 function CreateModal({ onClose, onCreated }: CreateModalProps) {
-  const { t } = useTranslation(["settings", "common"]);
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation();
   const [name, setName] = useState("");
   const [expiresDays, setExpiresDays] = useState<number | "">(30);
   const [creating, setCreating] = useState(false);
@@ -75,7 +76,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
         last_used_at: null,
       });
     } catch (err) {
-      useAppStore.getState().pushToast(t("apiKeys.createFailed", { message: (err as Error).message }), "error");
+      useAppStore.getState().pushToast(t("apiKeys.createModal.createError", { message: (err as Error).message }), "error");
     } finally {
       setCreating(false);
     }
@@ -116,7 +117,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
             type="button"
             onClick={onClose}
             className="rounded-md p-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
-            aria-label={t("common:close")}
+            aria-label={t("apiKeys.createModal.closeAriaLabel")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -130,13 +131,13 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-3">
                 <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" />
                 <p className="text-xs leading-5 text-amber-200">
-                  {t("apiKeys.createModal.warningTitle")}<strong className="font-semibold">{t("apiKeys.createModal.warningOnce")}</strong>{t("apiKeys.createModal.warningEnd")}
+                  {t("apiKeys.createModal.onlyOnceWarning")}
                 </p>
               </div>
 
               {/* 密钥展示 */}
               <div>
-                <div className="mb-1.5 text-xs font-medium text-gray-400">{t("apiKeys.createModal.yourKey")}</div>
+                <div className="mb-1.5 text-xs font-medium text-gray-400">{t("apiKeys.createModal.yourApiKey")}</div>
                 <div className="group relative flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5">
                   <code className="flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs text-indigo-300 scrollbar-none">
                     {created.key}
@@ -145,7 +146,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
                     type="button"
                     onClick={() => void handleCopy()}
                     className="flex-shrink-0 rounded-md p-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-200 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
-                    aria-label={t("apiKeys.createModal.copyKey")}
+                    aria-label={t("apiKeys.createModal.copyKeyAriaLabel")}
                   >
                     {copied ? (
                       <Check className="h-3.5 w-3.5 text-emerald-400" />
@@ -159,11 +160,11 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
               {/* 元信息 */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2">
-                  <div className="text-gray-500">{t("apiKeys.createModal.metaName")}</div>
+                  <div className="text-gray-500">{t("apiKeys.createModal.name")}</div>
                   <div className="mt-0.5 truncate font-medium text-gray-200">{created.name}</div>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2">
-                  <div className="text-gray-500">{t("apiKeys.createModal.metaPrefix")}</div>
+                  <div className="text-gray-500">{t("apiKeys.createModal.prefix")}</div>
                   <div className="mt-0.5 font-mono font-medium text-gray-200">{created.key_prefix}…</div>
                 </div>
               </div>
@@ -173,7 +174,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
                 onClick={onClose}
                 className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
               >
-                {t("apiKeys.createModal.copiedClose")}
+                {t("apiKeys.createModal.doneCopied")}
               </button>
             </div>
           ) : (
@@ -217,7 +218,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
                   onClick={onClose}
                   className="flex-1 rounded-xl border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-800 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
                 >
-                  {t("common:cancel")}
+                  {tc("cancel")}
                 </button>
                 <button
                   type="button"
@@ -230,7 +231,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
                   ) : (
                     <Plus className="h-4 w-4" />
                   )}
-                  {creating ? t("apiKeys.createModal.creating") : t("apiKeys.createModal.create")}
+                  {creating ? t("apiKeys.createModal.creating") : tc("create")}
                 </button>
               </div>
             </div>
@@ -252,7 +253,8 @@ interface DeleteModalProps {
 }
 
 function DeleteModal({ keyInfo, onClose, onDeleted }: DeleteModalProps) {
-  const { t } = useTranslation(["settings", "common"]);
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation();
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = useCallback(async () => {
@@ -262,7 +264,7 @@ function DeleteModal({ keyInfo, onClose, onDeleted }: DeleteModalProps) {
       await API.deleteApiKey(keyInfo.id);
       onDeleted(keyInfo.id);
     } catch (err) {
-      useAppStore.getState().pushToast(t("apiKeys.deleteFailed", { message: (err as Error).message }), "error");
+      useAppStore.getState().pushToast(t("apiKeys.deleteModal.deleteError", { message: (err as Error).message }), "error");
     } finally {
       setDeleting(false);
     }
@@ -289,9 +291,7 @@ function DeleteModal({ keyInfo, onClose, onDeleted }: DeleteModalProps) {
             <div>
               <h2 className="text-sm font-semibold text-gray-100">{t("apiKeys.deleteModal.title")}</h2>
               <p className="mt-1.5 text-xs leading-5 text-gray-400">
-                {t("apiKeys.deleteModal.description")}{" "}
-                <span className="font-mono text-gray-200">{keyInfo.key_prefix}…</span>（{keyInfo.name}）。
-                {t("apiKeys.deleteModal.descriptionEnd")}
+                {t("apiKeys.deleteModal.description", { prefix: keyInfo.key_prefix, name: keyInfo.name })}
               </p>
             </div>
           </div>
@@ -303,7 +303,7 @@ function DeleteModal({ keyInfo, onClose, onDeleted }: DeleteModalProps) {
               disabled={deleting}
               className="flex-1 rounded-xl border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
             >
-              {t("common:cancel")}
+              {tc("cancel")}
             </button>
             <button
               type="button"
@@ -335,7 +335,7 @@ interface ApiKeyRowProps {
 }
 
 function ApiKeyRow({ keyInfo, onDelete }: ApiKeyRowProps) {
-  const { t } = useTranslation(["settings", "common"]);
+  const { t } = useTranslation("settings");
   const expired = useMemo(() => isExpired(keyInfo.expires_at), [keyInfo.expires_at]);
 
   const handleDelete = useCallback(() => onDelete(keyInfo), [keyInfo, onDelete]);
@@ -363,11 +363,11 @@ function ApiKeyRow({ keyInfo, onDelete }: ApiKeyRowProps) {
           <span
             className={`text-xs ${expired ? "font-medium text-rose-400" : "text-gray-400"}`}
           >
-            {expired ? t("apiKeys.table.expired") : ""}
+            {expired ? `${t("apiKeys.expired")} · ` : ""}
             {formatDate(keyInfo.expires_at)}
           </span>
         ) : (
-          <span className="text-xs text-gray-600">{t("apiKeys.table.neverExpires")}</span>
+          <span className="text-xs text-gray-600">{t("apiKeys.neverExpires")}</span>
         )}
       </td>
 
@@ -382,10 +382,10 @@ function ApiKeyRow({ keyInfo, onDelete }: ApiKeyRowProps) {
           type="button"
           onClick={handleDelete}
           className="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs text-gray-500 transition-colors hover:border-rose-500/30 hover:bg-rose-500/8 hover:text-rose-400 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
-          aria-label={t("apiKeys.table.revokeLabel", { name: keyInfo.name })}
+          aria-label={t("apiKeys.revokeAriaLabel", { name: keyInfo.name })}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          {t("apiKeys.table.revoke")}
+          {t("apiKeys.revoke")}
         </button>
       </td>
     </tr>
@@ -397,7 +397,7 @@ function ApiKeyRow({ keyInfo, onDelete }: ApiKeyRowProps) {
 // ---------------------------------------------------------------------------
 
 export function ApiKeysTab() {
-  const { t } = useTranslation(["settings", "common"]);
+  const { t } = useTranslation("settings");
   const [keys, setKeys] = useState<ApiKeyInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -409,7 +409,7 @@ export function ApiKeysTab() {
       const res = await API.listApiKeys();
       setKeys(res);
     } catch (err) {
-      useAppStore.getState().pushToast(t("apiKeys.loadFailed", { message: (err as Error).message }), "error");
+      useAppStore.getState().pushToast(t("apiKeys.loadError", { message: (err as Error).message }), "error");
     } finally {
       setLoading(false);
     }
@@ -426,7 +426,7 @@ export function ApiKeysTab() {
   const handleDeleted = useCallback((keyId: number) => {
     setKeys((prev) => prev.filter((k) => k.id !== keyId));
     setDeleteTarget(null);
-    useAppStore.getState().pushToast(t("apiKeys.revoked"), "success");
+    useAppStore.getState().pushToast(t("apiKeys.deleteModal.revoked"), "success");
   }, [t]);
 
   const handleOpenCreate = useCallback(() => setShowCreate(true), []);
@@ -440,7 +440,7 @@ export function ApiKeysTab() {
         <div>
           <h2 className="text-sm font-semibold text-gray-100">{t("apiKeys.title")}</h2>
           <p className="mt-0.5 text-xs text-gray-500">
-            {t("apiKeys.subtitle")}
+            {t("apiKeys.description")}
           </p>
         </div>
         <button
@@ -463,25 +463,25 @@ export function ApiKeysTab() {
         ) : keys.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-14 text-gray-600">
             <KeyRound className="h-8 w-8 opacity-40" />
-            <p className="text-sm">{t("apiKeys.empty.title")}</p>
-            <p className="text-xs">{t("apiKeys.empty.hint")}</p>
+            <p className="text-sm">{t("apiKeys.noKeys")}</p>
+            <p className="text-xs">{t("apiKeys.noKeysHint")}</p>
           </div>
         ) : (
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-gray-800">
-                <th className="py-2.5 pl-4 pr-3 text-xs font-medium text-gray-500">{t("apiKeys.table.namePrefix")}</th>
+                <th className="py-2.5 pl-4 pr-3 text-xs font-medium text-gray-500">{t("apiKeys.headerNamePrefix")}</th>
                 <th className="hidden px-3 py-2.5 text-xs font-medium text-gray-500 sm:table-cell">
-                  {t("apiKeys.table.createdAt")}
+                  {t("apiKeys.headerCreatedAt")}
                 </th>
                 <th className="hidden px-3 py-2.5 text-xs font-medium text-gray-500 md:table-cell">
-                  {t("apiKeys.table.expiresAt")}
+                  {t("apiKeys.headerExpiresAt")}
                 </th>
                 <th className="hidden px-3 py-2.5 text-xs font-medium text-gray-500 lg:table-cell">
-                  {t("apiKeys.table.lastUsed")}
+                  {t("apiKeys.headerLastUsed")}
                 </th>
                 <th className="py-2.5 pl-3 pr-4 text-right text-xs font-medium text-gray-500">
-                  {t("apiKeys.table.actions")}
+                  {t("apiKeys.headerActions")}
                 </th>
               </tr>
             </thead>

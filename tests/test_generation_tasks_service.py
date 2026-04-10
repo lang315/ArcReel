@@ -1,3 +1,4 @@
+import contextlib
 from pathlib import Path
 
 import pytest
@@ -296,6 +297,10 @@ class TestGenerationTasks:
             def __init__(self, session_factory):
                 self.session_factory = session_factory
 
+            @contextlib.asynccontextmanager
+            async def session(self):
+                yield self
+
             async def default_image_backend(self):
                 raise AssertionError("video tasks should not resolve image backend")
 
@@ -372,3 +377,26 @@ class TestGenerationTasks:
 
         with pytest.raises(ValueError):
             await generation_tasks.execute_clue_task("demo", "玉佩", {"prompt": ""})
+
+
+class TestGetAspectRatio:
+    def test_reads_top_level_aspect_ratio(self):
+        project = {"aspect_ratio": "16:9", "content_mode": "narration"}
+        assert generation_tasks.get_aspect_ratio(project, "videos") == "16:9"
+        assert generation_tasks.get_aspect_ratio(project, "storyboards") == "16:9"
+
+    def test_fallback_to_content_mode_narration(self):
+        project = {"content_mode": "narration"}
+        assert generation_tasks.get_aspect_ratio(project, "videos") == "9:16"
+
+    def test_fallback_to_content_mode_drama(self):
+        project = {"content_mode": "drama"}
+        assert generation_tasks.get_aspect_ratio(project, "videos") == "16:9"
+
+    def test_characters_always_3_4(self):
+        project = {"aspect_ratio": "16:9"}
+        assert generation_tasks.get_aspect_ratio(project, "characters") == "3:4"
+
+    def test_clues_always_16_9(self):
+        project = {"aspect_ratio": "9:16"}
+        assert generation_tasks.get_aspect_ratio(project, "clues") == "16:9"

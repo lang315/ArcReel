@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from openai import InternalServerError
 
 from lib.providers import PROVIDER_OPENAI
 from lib.video_backends.base import (
@@ -116,8 +117,10 @@ class TestOpenAIVideoBackend:
         assert result.duration_seconds == 4
         call_kwargs = mock_client.videos.create_and_poll.call_args[1]
         ref = call_kwargs["input_reference"]
-        assert ref["type"] == "image_url"
-        assert ref["image_url"].startswith("data:image/png;base64,")
+        assert isinstance(ref, tuple)
+        assert ref[0] == "start.png"
+        assert isinstance(ref[1], bytes)
+        assert ref[2] == "image/png"
 
     async def test_failed_video_raises(self, tmp_path: Path):
         error = MagicMock()
@@ -161,6 +164,27 @@ class TestOpenAIVideoBackend:
                 call_kwargs = mock_client.videos.create_and_poll.call_args[1]
                 assert call_kwargs["seconds"] == expected, f"duration={seconds}"
 
+    async def test_video_seconds_none_fallback(self, tmp_path: Path):
+        """当 API 返回 video.seconds=None 时，应回退到请求的 duration。"""
+        mock_client = AsyncMock()
+        mock_client.videos.create_and_poll = AsyncMock(return_value=_make_mock_video(seconds=None))
+        mock_client.videos.download_content = AsyncMock(return_value=_make_mock_content(b"v"))
+
+        with patch("lib.openai_shared.AsyncOpenAI", return_value=mock_client):
+            from lib.video_backends.openai import OpenAIVideoBackend
+
+            backend = OpenAIVideoBackend(api_key="test-key")
+            output_path = tmp_path / "output.mp4"
+            request = VideoGenerationRequest(
+                prompt="test",
+                output_path=output_path,
+                duration_seconds=5,
+            )
+            result = await backend.generate(request)
+
+        # 请求 5 秒 → _map_duration → "8"，回退应返回 8
+        assert result.duration_seconds == 8
+
     async def test_size_mapping(self, tmp_path: Path):
         mock_client = AsyncMock()
         mock_client.videos.create_and_poll = AsyncMock(return_value=_make_mock_video(seconds="4"))
@@ -182,3 +206,100 @@ class TestOpenAIVideoBackend:
                 await backend.generate(request)
                 call_kwargs = mock_client.videos.create_and_poll.call_args[1]
                 assert call_kwargs["size"] == expected_size, f"aspect={aspect}"
+
+    async def test_content_download_retry_does_not_regenerate(self, tmp_path: Path):
+        """内容下载 502 失败后应单独重试下载，而非重新调用 create_and_poll。"""
+        error = InternalServerError(
+            message="Failed to resolve Vertex video URL",
+            response=MagicMock(status_code=502, headers={}),
+            body=None,
+        )
+        mock_client = AsyncMock()
+        mock_client.videos.create_and_poll = AsyncMock(return_value=_make_mock_video(seconds="8"))
+        mock_client.videos.download_content = AsyncMock(side_effect=[error, error, _make_mock_content(b"video-data")])
+
+        with (
+            patch("lib.openai_shared.AsyncOpenAI", return_value=mock_client),
+            patch("lib.retry.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            from lib.video_backends.openai import OpenAIVideoBackend
+
+            backend = OpenAIVideoBackend(api_key="test-key")
+            output_path = tmp_path / "output.mp4"
+            request = VideoGenerationRequest(
+                prompt="test",
+                output_path=output_path,
+                duration_seconds=8,
+            )
+            result = await backend.generate(request)
+
+        assert result.video_path == output_path
+        assert output_path.read_bytes() == b"video-data"
+        # create_and_poll 只调用 1 次，不因下载失败重新生成
+        assert mock_client.videos.create_and_poll.call_count == 1
+        # download_content 调用 3 次（2 次失败 + 1 次成功）
+        assert mock_client.videos.download_content.call_count == 3
+
+    async def test_content_download_all_retries_exhausted(self, tmp_path: Path):
+        """内容下载全部重试耗尽后应抛出异常，且不重新生成视频。"""
+        error = InternalServerError(
+            message="Failed to resolve Vertex video URL",
+            response=MagicMock(status_code=502, headers={}),
+            body=None,
+        )
+        mock_client = AsyncMock()
+        mock_client.videos.create_and_poll = AsyncMock(return_value=_make_mock_video(seconds="8"))
+        mock_client.videos.download_content = AsyncMock(side_effect=error)
+
+        with (
+            patch("lib.openai_shared.AsyncOpenAI", return_value=mock_client),
+            patch("lib.retry.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            from lib.video_backends.openai import OpenAIVideoBackend
+
+            backend = OpenAIVideoBackend(api_key="test-key")
+            output_path = tmp_path / "output.mp4"
+            request = VideoGenerationRequest(
+                prompt="test",
+                output_path=output_path,
+                duration_seconds=8,
+            )
+            with pytest.raises(InternalServerError):
+                await backend.generate(request)
+
+        # 即使下载重试耗尽，也只生成 1 次视频
+        assert mock_client.videos.create_and_poll.call_count == 1
+
+    async def test_content_download_non_retryable_error_fails_immediately(self, tmp_path: Path):
+        """不可重试的下载错误（如 4xx）应立即失败，不浪费退避时间。"""
+        from openai import AuthenticationError
+
+        error = AuthenticationError(
+            message="Invalid API key",
+            response=MagicMock(status_code=401, headers={}),
+            body=None,
+        )
+        mock_client = AsyncMock()
+        mock_client.videos.create_and_poll = AsyncMock(return_value=_make_mock_video(seconds="8"))
+        mock_client.videos.download_content = AsyncMock(side_effect=error)
+        mock_sleep = AsyncMock()
+
+        with (
+            patch("lib.openai_shared.AsyncOpenAI", return_value=mock_client),
+            patch("lib.retry.asyncio.sleep", mock_sleep),
+        ):
+            from lib.video_backends.openai import OpenAIVideoBackend
+
+            backend = OpenAIVideoBackend(api_key="test-key")
+            output_path = tmp_path / "output.mp4"
+            request = VideoGenerationRequest(
+                prompt="test",
+                output_path=output_path,
+                duration_seconds=8,
+            )
+            with pytest.raises(AuthenticationError):
+                await backend.generate(request)
+
+        # 不可重试错误：只调用 1 次下载，无 sleep
+        assert mock_client.videos.download_content.call_count == 1
+        mock_sleep.assert_not_called()

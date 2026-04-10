@@ -1,4 +1,5 @@
 import { useEffect, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowUpRight,
   BellRing,
@@ -25,6 +26,7 @@ export function WorkspaceNotificationsDrawer({
   anchorRef,
   onNavigate,
 }: WorkspaceNotificationsDrawerProps) {
+  const { t } = useTranslation(["layout"]);
   const workspaceNotifications = useAppStore((s) => s.workspaceNotifications);
   const markAllWorkspaceNotificationsRead = useAppStore(
     (s) => s.markAllWorkspaceNotificationsRead
@@ -57,18 +59,18 @@ export function WorkspaceNotificationsDrawer({
               <BellRing className="h-4 w-4" />
             </span>
             <span className="rounded-full border border-white/8 bg-white/4 px-2.5 py-1 text-[11px] text-slate-300">
-              {workspaceNotifications.length} 条通知
+              {t("notifications.count", { count: workspaceNotifications.length })}
             </span>
             <span className="flex items-center gap-1.5 text-[11px] text-amber-100/85">
               <Sparkles className="h-3.5 w-3.5" />
-              未读 {unreadCount}
+              {t("notifications.unread", { count: unreadCount })}
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-xl p-1.5 text-slate-500 transition-colors hover:bg-white/6 hover:text-slate-200"
-            aria-label="关闭通知面板"
+            aria-label={t("notifications.closePanel")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -80,9 +82,9 @@ export function WorkspaceNotificationsDrawer({
           <div className="flex flex-col items-center justify-center gap-3 rounded-[1.1rem] border border-dashed border-white/10 bg-white/[0.03] px-6 py-12 text-center">
             <BellRing className="h-5 w-5 text-slate-500" />
             <div>
-              <p className="text-sm text-slate-200">当前没有通知</p>
+              <p className="text-sm text-slate-200">{t("notifications.noNotifications")}</p>
               <p className="mt-1 text-xs text-slate-500">
-                项目刷新、生成完成和可定位变更会出现在这里
+                {t("notifications.noNotificationsHint")}
               </p>
             </div>
           </div>
@@ -105,10 +107,14 @@ export function WorkspaceNotificationsDrawer({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                          {item.read ? "已读" : "新通知"}
+                          {item.read ? t("notifications.read") : t("notifications.new")}
                         </span>
                         <span className="text-[11px] text-slate-500">
-                          {formatNotificationTime(item.created_at)}
+                          {formatNotificationTime(
+                            item.created_at,
+                            t("notifications.justNow"),
+                            (n) => t("notifications.minutesAgo", { count: n }),
+                          )}
                         </span>
                       </div>
                       <p className="mt-1.5 whitespace-pre-wrap leading-5 text-slate-100">
@@ -121,18 +127,18 @@ export function WorkspaceNotificationsDrawer({
                             onClick={() => onNavigate(item)}
                             className="inline-flex items-center gap-1 rounded-full border border-sky-300/18 bg-sky-300/10 px-3 py-1 text-xs font-medium text-sky-100 transition-all hover:-translate-y-0.5 hover:border-sky-200/35 hover:bg-sky-300/14"
                           >
-                            查看定位
+                            {t("notifications.viewLocation")}
                             <ArrowUpRight className="h-3.5 w-3.5" />
                           </button>
                         ) : (
-                          <span className="text-[11px] text-slate-500">仅通知</span>
+                          <span className="text-[11px] text-slate-500">{t("notifications.infoOnly")}</span>
                         )}
                         <button
                           type="button"
                           onClick={() => removeWorkspaceNotification(item.id)}
                           className="rounded-full px-2 py-1 text-[11px] text-slate-500 transition-colors hover:bg-white/6 hover:text-slate-200"
                         >
-                          移除
+                          {t("notifications.remove")}
                         </button>
                       </div>
                     </div>
@@ -147,10 +153,10 @@ export function WorkspaceNotificationsDrawer({
       {workspaceNotifications.length > 0 && (
         <div className="border-t border-white/8 px-4 py-2.5">
           <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span>打开面板会自动标记为已读</span>
+            <span>{t("notifications.autoMarkRead")}</span>
             <span className="inline-flex items-center gap-1">
               <CheckCheck className="h-3.5 w-3.5" />
-              临时会话记录
+              {t("notifications.sessionRecords")}
             </span>
           </div>
         </div>
@@ -187,10 +193,10 @@ function getToneIcon(tone: WorkspaceNotification["tone"]) {
   }
 }
 
-function formatNotificationTime(timestamp: number): string {
+function formatNotificationTime(timestamp: number, justNow: string, minutesAgoFmt: (n: number) => string): string {
   const diff = Date.now() - timestamp;
-  if (diff < 60_000) return "刚刚";
-  if (diff < 3_600_000) return `${Math.max(1, Math.floor(diff / 60_000))} 分钟前`;
+  if (diff < 60_000) return justNow;
+  if (diff < 3_600_000) return minutesAgoFmt(Math.max(1, Math.floor(diff / 60_000)));
 
   const date = new Date(timestamp);
   return `${date.getHours().toString().padStart(2, "0")}:${date

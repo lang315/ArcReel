@@ -1,7 +1,6 @@
 {
   "pageNotFound": "Không tìm thấy trang",
   "backToHome": "Về trang chủ",
-
   "header": {
     "title": "Dự án",
     "importZip": "Nhập ZIP",
@@ -11,13 +10,11 @@
     "systemSettings": "Cài đặt hệ thống",
     "configIncomplete": "Cấu hình chưa hoàn chỉnh"
   },
-
   "list": {
     "loading": "Đang tải danh sách dự án...",
     "empty": "Chưa có dự án nào",
     "emptyHint": "Nhấn 'Dự án mới' hoặc 'Nhập ZIP' ở góc trên bên phải để bắt đầu"
   },
-
   "card": {
     "noStyle": "Chưa đặt phong cách",
     "progress": "Tiến độ",
@@ -28,7 +25,6 @@
     "episodesInProduction": " · {{count}} tập đang sản xuất",
     "episodesCompleted": " · {{count}} tập hoàn thành"
   },
-
   "phase": {
     "setup": "Chuẩn bị",
     "worldbuilding": "Xây dựng thế giới",
@@ -36,7 +32,6 @@
     "production": "Sản xuất",
     "completed": "Hoàn thành"
   },
-
   "importConflict": {
     "title": "Phát hiện ID dự án trùng lặp",
     "description": "ID dự án mà gói nhập chuẩn bị sử dụng",
@@ -48,7 +43,6 @@
     "renameDesc": "Giữ nguyên dự án hiện có; dự án nhập sẽ được cấp ID nội bộ mới",
     "renameAriaLabel": "Tự động đổi tên khi nhập"
   },
-
   "importDiagnostics": {
     "title": "Chẩn đoán nhập",
     "description": "Kiểm tra trước khi nhập đã hoàn tất. Các vấn đề được nhóm theo mức độ nghiêm trọng; các vấn đề chặn phải được giải quyết trước khi tiếp tục nhập.",
@@ -56,7 +50,6 @@
     "autoFixable": "Tự động sửa được",
     "warnings": "Cảnh báo"
   },
-
   "importToast": {
     "success": "Dự án \"{{title}}\" đã được nhập",
     "successWithFixes": "Dự án \"{{title}}\" đã được nhập, tự động sửa {{count}} mục",
@@ -64,13 +57,12 @@
     "failed": "Nhập thất bại: {{detail}} ({{blocking}} vấn đề chặn, {{autoFixable}} tự động sửa được)",
     "failedNoAutoFix": "Nhập thất bại: {{detail}} ({{blocking}} vấn đề chặn)"
   },
-
   "createModal": {
     "title": "Dự án mới",
     "projectTitle": "Tiêu đề dự án",
     "titleRequired": "Tiêu đề dự án không được để trống",
-    "titlePlaceholder": "Ví dụ: Hoàng hậu uy vũ",
-    "titleHint": "Hệ thống sẽ tự động tạo ID dự án nội bộ dùng cho URL và lưu trữ tệp",
+    "titlePlaceholder": "Ví dụ: Hoàng hậu tái sinh",
+    "titleHint": "Hệ thống sẽ tự động tạo mã định danh nội bộ dùng cho URL và lưu trữ",
     "contentMode": "Chế độ nội dung",
     "modeNarration": "Thuyết minh + Hình ảnh",
     "modeDrama": "Hoạt hình kịch",
@@ -86,9 +78,29 @@
     "creating": "Đang tạo...",
     "createButton": "Tạo dự án",
     "createFailed": "Tạo dự án thất bại: {{message}}",
-    "styleImageUploadFailed": "Tải ảnh tham chiếu phong cách thất bại; bạn có thể tải lại sau trong cài đặt dự án"
+    "styleImageUploadFailed": "Tải ảnh phong cách thất bại. Bạn có thể tải lại sau trong cài đặt dự án",
+    "narration": "Kể chuyện + Hình ảnh",
+    "drama": "Phim hoạt hình",
+    "aspectRatio": "Tỷ lệ khung hình",
+    "portrait": "Dọc 9:16",
+    "landscape": "Ngang 16:9",
+    "defaultDuration": "Thời lượng mặc định",
+    "defaultDurationHint": "Để AI tự quyết định thời lượng theo nội dung, hoặc chỉ định cố định",
+    "defaultDurationAriaLabel": "Thời lượng mặc định",
+    "photographic": "Chụp ảnh thực",
+    "anime": "Anime",
+    "animation3d": "Hoạt hình 3D",
+    "generationMode": "Chế độ tạo storyboard",
+    "generationModeHint": "Chế độ lưới tạo theo nhóm đoạn với nối khung đầu/cuối để phong cách nhất quán hơn",
+    "singleMode": "Từng tấm",
+    "gridMode": "Lưới",
+    "styleImage": "Ảnh tham chiếu phong cách",
+    "styleImageOptional": "(tùy chọn)",
+    "styleImagePreviewAlt": "Xem trước ảnh tham chiếu",
+    "uploadImage": "Tải ảnh tham chiếu",
+    "styleImageHint": "Sau khi tải lên, đặc điểm phong cách sẽ được phân tích tự động để tạo hình ảnh nhất quán",
+    "createProject": "Tạo dự án"
   },
-
   "openClaw": {
     "title": "Hướng dẫn tích hợp OpenClaw",
     "subtitle": "Kết nối ArcReel với OpenClaw AI Agent",

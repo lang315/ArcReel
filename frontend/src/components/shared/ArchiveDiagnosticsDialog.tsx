@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { ArchiveDiagnostic } from "@/types";
 
 interface DiagnosticsSection {
@@ -21,6 +22,7 @@ export function ArchiveDiagnosticsDialog({
   sections,
   onClose,
 }: ArchiveDiagnosticsDialogProps) {
+  const { t } = useTranslation();
   const visibleSections = sections.filter((s) => s.items.length > 0);
 
   if (visibleSections.length === 0) return null;
@@ -43,7 +45,7 @@ export function ArchiveDiagnosticsDialog({
             onClick={onClose}
             className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-gray-500 hover:text-white"
           >
-            关闭
+            {t("close")}
           </button>
         </div>
 

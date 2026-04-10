@@ -37,6 +37,7 @@ import type {
   DiscoveredModel,
   CostEstimateResponse,
 } from "@/types";
+import type { GridGeneration } from "@/types/grid";
 import { getToken, clearToken } from "@/utils/auth";
 import { translateApiError } from "@/utils/translate-error";
 
@@ -259,7 +260,10 @@ class API {
   static async createProject(
     title: string,
     style: string = "",
-    contentMode: string = "narration"
+    contentMode: string = "narration",
+    aspectRatio: string = "9:16",
+    defaultDuration: number | null = null,
+    generationMode: "single" | "grid" = "single",
   ): Promise<{ success: boolean; name: string; project: ProjectData }> {
     return this.request("/projects", {
       method: "POST",
@@ -267,6 +271,9 @@ class API {
         title,
         style,
         content_mode: contentMode,
+        aspect_ratio: aspectRatio,
+        default_duration: defaultDuration,
+        generation_mode: generationMode,
       }),
     });
   }
@@ -285,8 +292,8 @@ class API {
     name: string,
     updates: Partial<ProjectData>
   ): Promise<{ success: boolean; project: ProjectData }> {
-    if ("content_mode" in updates || "aspect_ratio" in updates) {
-      throw new Error("项目创建后不支持修改 content_mode 或 aspect_ratio");
+    if ("content_mode" in updates) {
+      throw new Error("项目创建后不支持修改 content_mode");
     }
     return this.request(`/projects/${encodeURIComponent(name)}`, {
       method: "PATCH",
@@ -873,6 +880,39 @@ class API {
     return this.request(`/tasks/stats${query ? "?" + query : ""}`);
   }
 
+  // ==================== 任务取消 API ====================
+
+  static async cancelPreview(
+    taskId: string
+  ): Promise<{ task: { task_id: string; task_type: string; resource_id: string }; cascaded: { task_id: string; task_type: string; resource_id: string }[] }> {
+    return this.request(`/tasks/${encodeURIComponent(taskId)}/cancel-preview`);
+  }
+
+  static async cancelTask(
+    taskId: string
+  ): Promise<{ cancelled: TaskItem[]; skipped_running: TaskItem[] }> {
+    return this.request(`/tasks/${encodeURIComponent(taskId)}/cancel`, {
+      method: "POST",
+    });
+  }
+
+  static async cancelAllPreview(
+    projectName: string
+  ): Promise<{ queued_count: number }> {
+    return this.request(
+      `/projects/${encodeURIComponent(projectName)}/tasks/cancel-all-preview`
+    );
+  }
+
+  static async cancelAllQueued(
+    projectName: string
+  ): Promise<{ cancelled_count: number; skipped_running_count: number }> {
+    return this.request(
+      `/projects/${encodeURIComponent(projectName)}/tasks/cancel-all`,
+      { method: "POST" }
+    );
+  }
+
   static openTaskStream(options: TaskStreamOptions = {}): EventSource {
     const params = new URLSearchParams();
     if (options.projectName)
@@ -1392,6 +1432,59 @@ class API {
    */
   static async getCostEstimate(projectName: string): Promise<CostEstimateResponse> {
     return this.request(`/projects/${encodeURIComponent(projectName)}/cost-estimate`);
+  }
+
+  // ==================== Grid 图生视频 API ====================
+
+  /**
+   * 生成 Grid 图像（多场景网格）
+   * @param projectName - 项目名称
+   * @param episode - 剧集编号
+   * @param scriptFile - 剧本文件名
+   * @param sceneIds - 可选，指定场景 ID 列表
+   */
+  static async generateGrid(
+    projectName: string,
+    episode: number,
+    scriptFile: string,
+    sceneIds?: string[]
+  ): Promise<{ success: boolean; grid_ids: string[]; task_ids: string[]; message: string }> {
+    return this.request(
+      `/projects/${encodeURIComponent(projectName)}/generate/grid/${episode}`,
+      { method: "POST", body: JSON.stringify({ script_file: scriptFile, scene_ids: sceneIds }) }
+    );
+  }
+
+  /**
+   * 列出项目所有 Grid 记录
+   * @param projectName - 项目名称
+   */
+  static async listGrids(projectName: string): Promise<GridGeneration[]> {
+    return this.request(`/projects/${encodeURIComponent(projectName)}/grids`);
+  }
+
+  /**
+   * 获取单个 Grid 详情
+   * @param projectName - 项目名称
+   * @param gridId - Grid ID
+   */
+  static async getGrid(projectName: string, gridId: string): Promise<GridGeneration> {
+    return this.request(`/projects/${encodeURIComponent(projectName)}/grids/${encodeURIComponent(gridId)}`);
+  }
+
+  /**
+   * 重新生成 Grid 图像
+   * @param projectName - 项目名称
+   * @param gridId - Grid ID
+   */
+  static async regenerateGrid(
+    projectName: string,
+    gridId: string
+  ): Promise<{ success: boolean; task_id: string }> {
+    return this.request(
+      `/projects/${encodeURIComponent(projectName)}/grids/${encodeURIComponent(gridId)}/regenerate`,
+      { method: "POST" }
+    );
   }
 }
 

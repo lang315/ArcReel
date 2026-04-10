@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 import { ImageIcon, Film, Clock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { API } from "@/api";
+import { DEFAULT_DURATIONS } from "@/utils/provider-models";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AvatarStack } from "@/components/ui/AvatarStack";
 import { ClueStack } from "@/components/ui/ClueStack";
@@ -147,6 +148,7 @@ interface SegmentCardProps {
   characters: Record<string, Character>;
   clues: Record<string, Clue>;
   projectName: string;
+  durationOptions?: number[];
   onUpdatePrompt?: (
     segmentId: string,
     field: string,
@@ -164,25 +166,26 @@ interface SegmentCardProps {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-const DURATION_OPTIONS = [4, 6, 8];
-
 /** Duration selector — clickable when onUpdatePrompt is provided, read-only otherwise. */
 function DurationSelector({
   seconds,
   segmentId,
   onUpdatePrompt,
+  durationOptions = DEFAULT_DURATIONS as number[],
 }: {
   seconds: number;
   segmentId: string;
   onUpdatePrompt?: (segmentId: string, field: string, value: unknown) => void;
+  durationOptions?: number[];
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
 
   if (!onUpdatePrompt) {
     return (
       <span className="inline-flex items-center gap-0.5 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">
-        <Clock className="h-3 w-3" />
+        <Clock aria-hidden="true" className="h-3 w-3" />
         {seconds}s
       </span>
     );
@@ -193,9 +196,9 @@ function DurationSelector({
       <button
         ref={ref}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex cursor-pointer items-center gap-0.5 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300 hover:bg-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        className="inline-flex cursor-pointer items-center gap-0.5 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300 hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       >
-        <Clock className="h-3 w-3" />
+        <Clock aria-hidden="true" className="h-3 w-3" />
         {seconds}s
       </button>
       <Popover
@@ -207,15 +210,17 @@ function DurationSelector({
         align="start"
         sideOffset={6}
       >
-        <div className="flex gap-1">
-          {DURATION_OPTIONS.map((d) => (
+        <div className="flex gap-1" role="radiogroup" aria-label={t("canvas:segmentCard.durationAriaLabel")}>
+          {durationOptions.map((d) => (
             <button
               key={d}
+              role="radio"
+              aria-checked={d === seconds}
               onClick={() => {
                 onUpdatePrompt(segmentId, "duration_seconds", d);
                 setOpen(false);
               }}
-              className={`rounded px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+              className={`rounded px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                 d === seconds
                   ? "bg-indigo-600 text-white"
                   : "text-gray-300 hover:bg-gray-700"
@@ -267,7 +272,7 @@ function TextColumn({
   contentMode: "narration" | "drama";
   onUpdateNote?: (value: string) => void;
 }) {
-  const { t } = useTranslation(["canvas"]);
+  const { t } = useTranslation("canvas");
   const [noteDraft, setNoteDraft] = useState(segment.note ?? "");
   const committedRef = useRef(segment.note ?? "");
 
@@ -286,13 +291,13 @@ function TextColumn({
   const noteSection = (
     <div className="mt-auto pt-3 border-t border-gray-800">
       <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 block">
-        {t("segment.note")}
+        {t("segmentCard.note")}
       </span>
       <textarea
         className="w-full resize-none rounded-lg border border-gray-700 bg-gray-800/50 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
         rows={4}
-        placeholder={t("segment.addNote")}
-aria-label={t("segment.noteAriaLabel")}
+        placeholder={t("segmentCard.notePlaceholder")}
+        aria-label={t("segmentCard.noteAriaLabel")}
         value={noteDraft}
         onChange={(e) => setNoteDraft(e.target.value)}
         onBlur={handleNoteBlur}
@@ -305,10 +310,10 @@ aria-label={t("segment.noteAriaLabel")}
     return (
       <div className="flex h-full flex-col gap-1.5 p-3">
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
-          {t("segment.originalText")}
+          {t("segmentCard.originalText")}
         </span>
         <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-300 font-sans">
-          {s.novel_text || t("segment.noOriginalText")}
+          {s.novel_text || t("segmentCard.noOriginalText")}
         </pre>
         {noteSection}
       </div>
@@ -324,10 +329,10 @@ aria-label={t("segment.noteAriaLabel")}
   return (
     <div className="flex h-full flex-col gap-1.5 p-3">
       <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
-        {t("segment.dialogue")}
+        {t("segmentCard.dialogue")}
       </span>
       {dialogue.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">{t("segment.noDialogue")}</p>
+        <p className="text-sm text-gray-500 italic">{t("segmentCard.noDialogue")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {dialogue.map((d: { speaker: string; line: string }, i: number) => (
@@ -359,7 +364,7 @@ function PromptColumn({
   segmentId: string;
   onUpdatePrompt?: (segmentId: string, field: string, value: unknown) => void;
 }) {
-  const { t } = useTranslation(["canvas"]);
+  const { t } = useTranslation("canvas");
   const { image_prompt, video_prompt } = segment;
 
   const isStructuredImage = isStructuredImagePromptValue(image_prompt);
@@ -455,7 +460,7 @@ function PromptColumn({
   return (
     <div className="flex flex-col gap-3 p-3">
       <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-        {t("segment.prompt")}
+        {t("segmentCard.prompts")}
       </span>
 
       {/* ---- Image Prompt ---- */}
@@ -479,7 +484,7 @@ function PromptColumn({
               setImgText(v);
               fireString("image_prompt", v);
             }}
-            placeholder={t("segment.imagePromptPlaceholder")}
+            placeholder={t("segmentCard.imagePromptPlaceholder")}
           />
         )}
       </div>
@@ -505,7 +510,7 @@ function PromptColumn({
               setVidText(v);
               fireString("video_prompt", v);
             }}
-            placeholder={t("segment.videoPromptPlaceholder")}
+            placeholder={t("segmentCard.videoPromptPlaceholder")}
           />
         )}
       </div>
@@ -554,10 +559,13 @@ function MediaColumn({
   generatingStoryboard?: boolean;
   generatingVideo?: boolean;
 }) {
-  const { t } = useTranslation(["canvas"]);
+  const { t } = useTranslation("canvas");
   const assets = segment.generated_assets;
   const storyboardFp = useProjectsStore(
     (s) => assets?.storyboard_image ? s.getAssetFingerprint(assets.storyboard_image) : null,
+  );
+  const lastFrameFp = useProjectsStore(
+    (s) => assets?.storyboard_last_image ? s.getAssetFingerprint(assets.storyboard_last_image) : null,
   );
   const videoFp = useProjectsStore(
     (s) => assets?.video_clip ? s.getAssetFingerprint(assets.video_clip) : null,
@@ -568,12 +576,18 @@ function MediaColumn({
   const storyboardUrl = assets?.storyboard_image
     ? API.getFileUrl(projectName, assets.storyboard_image, storyboardFp)
     : null;
+  const lastFrameUrl = assets?.storyboard_last_image
+    ? API.getFileUrl(projectName, assets.storyboard_last_image, lastFrameFp)
+    : null;
   const videoUrl = assets?.video_clip
     ? API.getFileUrl(projectName, assets.video_clip, videoFp)
     : null;
   const thumbnailUrl = assets?.video_thumbnail
     ? API.getFileUrl(projectName, assets.video_thumbnail, thumbnailFp)
     : null;
+
+  // Detect grid mode: segment has a last frame image
+  const hasLastFrame = !!assets?.storyboard_last_image;
 
   // Normalize aspect ratio to the union type expected by AspectFrame
   const normalizedRatio = (
@@ -587,7 +601,7 @@ function MediaColumn({
         <div className="mb-1.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <ImageIcon className="h-3 w-3 text-gray-500" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{t("segment.storyboardLabel")}</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{t("segmentCard.storyboard")}</span>
           </div>
           <VersionTimeMachine
             projectName={projectName}
@@ -596,27 +610,92 @@ function MediaColumn({
             onRestore={onRestoreStoryboard}
           />
         </div>
-        <PreviewableImageFrame src={storyboardUrl} alt={t("segment.storyboardAlt", { id: segmentId })}>
-          <AspectFrame ratio={normalizedRatio}>
-            <ImageFlipReveal
-              src={storyboardUrl}
-alt={t("segment.storyboardAlt", { id: segmentId })}
-              loading="lazy"
-              className="h-full w-full object-cover"
-              fallback={
-                <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-600">
-                  <ImageIcon className="h-8 w-8" />
-                  <span className="text-xs">{t("segment.noStoryboard")}</span>
-                </div>
-              }
-            />
-          </AspectFrame>
-        </PreviewableImageFrame>
+
+        {hasLastFrame ? (
+          /* Grid mode: vertical stack of first frame + last frame */
+          <div className="flex flex-col gap-1.5">
+            {/* First frame */}
+            <div>
+              <div className="mb-1 flex items-center gap-1">
+                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/30">
+                  {t("segmentCard.firstFrame")}
+                </span>
+              </div>
+              <PreviewableImageFrame src={storyboardUrl} alt={`${segmentId} 首帧`}>
+                <AspectFrame ratio={normalizedRatio}>
+                  <ImageFlipReveal
+                    src={storyboardUrl}
+                    alt={`${segmentId} 首帧`}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                    fallback={
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-600">
+                        <ImageIcon className="h-8 w-8" />
+                        <span className="text-xs">{t("segmentCard.noFirstFrame")}</span>
+                      </div>
+                    }
+                  />
+                </AspectFrame>
+              </PreviewableImageFrame>
+            </div>
+
+            {/* Arrow connector */}
+            <div className="flex items-center justify-center gap-2 py-0.5">
+              <div className="flex-1 border-t border-dashed border-emerald-700/40" />
+              <span className="text-sm text-emerald-500/70 select-none">↓</span>
+              <div className="flex-1 border-t border-dashed border-emerald-700/40" />
+            </div>
+
+            {/* Last frame */}
+            <div>
+              <div className="mb-1 flex items-center gap-1">
+                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-purple-500/20 text-purple-400 ring-1 ring-purple-500/30">
+                  {t("segmentCard.lastFrame")}
+                </span>
+              </div>
+              <PreviewableImageFrame src={lastFrameUrl} alt={`${segmentId} 尾帧`}>
+                <AspectFrame ratio={normalizedRatio}>
+                  <ImageFlipReveal
+                    src={lastFrameUrl}
+                    alt={`${segmentId} 尾帧`}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                    fallback={
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-600">
+                        <ImageIcon className="h-8 w-8" />
+                        <span className="text-xs">{t("segmentCard.noLastFrame")}</span>
+                      </div>
+                    }
+                  />
+                </AspectFrame>
+              </PreviewableImageFrame>
+            </div>
+          </div>
+        ) : (
+          /* Single mode: existing storyboard display */
+          <PreviewableImageFrame src={storyboardUrl} alt={`${segmentId} 分镜图`}>
+            <AspectFrame ratio={normalizedRatio}>
+              <ImageFlipReveal
+                src={storyboardUrl}
+                alt={`${segmentId} 分镜图`}
+                loading="lazy"
+                className="h-full w-full object-cover"
+                fallback={
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-600">
+                    <ImageIcon className="h-8 w-8" />
+                    <span className="text-xs">{t("segmentCard.noStoryboard")}</span>
+                  </div>
+                }
+              />
+            </AspectFrame>
+          </PreviewableImageFrame>
+        )}
+
         <div className="mt-2">
           <GenerateButton
             onClick={() => onGenerateStoryboard?.(segmentId)}
             loading={generatingStoryboard}
-label={t("segment.generateStoryboard")}
+            label={t("segmentCard.generateStoryboard")}
             className="w-full justify-center"
           />
         </div>
@@ -627,7 +706,7 @@ label={t("segment.generateStoryboard")}
         <div className="mb-1.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Film className="h-3 w-3 text-gray-500" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{t("segment.videoLabel")}</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{t("segmentCard.video")}</span>
           </div>
           <VersionTimeMachine
             projectName={projectName}
@@ -643,7 +722,7 @@ label={t("segment.generateStoryboard")}
         ) : (
           <div className="flex items-center justify-center rounded-lg border border-dashed border-gray-700 bg-gray-800/30 py-4">
             <span className="text-xs text-gray-600">
-{assets?.storyboard_image ? t("segment.canGenerateVideo") : t("segment.needStoryboardFirst")}
+              {assets?.storyboard_image ? t("segmentCard.canGenerateVideo") : t("segmentCard.needStoryboardFirst")}
             </span>
           </div>
         )}
@@ -651,7 +730,7 @@ label={t("segment.generateStoryboard")}
           <GenerateButton
             onClick={() => onGenerateVideo?.(segmentId)}
             loading={generatingVideo}
-label={t("segment.generateVideo")}
+            label={hasLastFrame ? t("segmentCard.generateVideoFirstLast") : t("segmentCard.generateVideo")}
             className="w-full justify-center"
             disabled={!assets?.storyboard_image}
           />
@@ -672,6 +751,7 @@ export function SegmentCard({
   characters,
   clues,
   projectName,
+  durationOptions,
   onUpdatePrompt,
   onGenerateStoryboard,
   onGenerateVideo,
@@ -680,8 +760,8 @@ export function SegmentCard({
   generatingStoryboard = false,
   generatingVideo = false,
 }: SegmentCardProps) {
-  const { t } = useTranslation(["canvas"]);
   const segmentId = getSegmentId(segment, contentMode);
+  const { t } = useTranslation("canvas");
   const segCost = useCostStore((s) => s.getSegmentCost(segmentId));
   const charNames = getCharacterNames(segment, contentMode);
   const clueNames = getClueNames(segment, contentMode);
@@ -704,17 +784,18 @@ export function SegmentCard({
               seconds={segment.duration_seconds}
               segmentId={segmentId}
               onUpdatePrompt={onUpdatePrompt}
+              durationOptions={durationOptions}
             />
             {segCost && (
               <span className="tabular-nums contents">
                 <span className="text-gray-700">|</span>
-                <span className="text-[11px] text-gray-600">{t("segment.estimate")}</span>
-                <span className="text-[11px] text-gray-500">{t("segment.storyboardCost")} <span className="text-gray-400">{formatCost(segCost.estimate.image)}</span></span>
-                <span className="text-[11px] text-gray-500">{t("segment.videoCost")} <span className="text-gray-400">{formatCost(segCost.estimate.video)}</span></span>
+                <span className="text-[11px] text-gray-600">{t("segmentCard.estimate")}</span>
+                <span className="text-[11px] text-gray-500">{t("segmentCard.storyboard")} <span className="text-gray-400">{formatCost(segCost.estimate.image)}</span></span>
+                <span className="text-[11px] text-gray-500">{t("segmentCard.video")} <span className="text-gray-400">{formatCost(segCost.estimate.video)}</span></span>
                 <span className="text-gray-700">|</span>
-                <span className="text-[11px] text-gray-600">{t("segment.actual")}</span>
-                <span className="text-[11px] text-gray-500">{t("segment.storyboardCost")} <span className="text-gray-400">{formatCost(segCost.actual.image)}</span></span>
-                <span className="text-[11px] text-gray-500">{t("segment.videoCost")} <span className="text-gray-400">{formatCost(segCost.actual.video)}</span></span>
+                <span className="text-[11px] text-gray-600">{t("segmentCard.actual")}</span>
+                <span className="text-[11px] text-gray-500">{t("segmentCard.storyboard")} <span className="text-gray-400">{formatCost(segCost.actual.image)}</span></span>
+                <span className="text-[11px] text-gray-500">{t("segmentCard.video")} <span className="text-gray-400">{formatCost(segCost.actual.video)}</span></span>
               </span>
             )}
           </div>

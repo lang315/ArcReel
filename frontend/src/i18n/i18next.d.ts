@@ -1,8 +1,9 @@
-import type { defaultNS, resources } from "./index";
+import "i18next";
 
 declare module "i18next" {
   interface CustomTypeOptions {
-    defaultNS: typeof defaultNS;
-    resources: (typeof resources)["zh"];
+    defaultNS: "common";
+    // Disable strict key checking to allow cross-namespace keys and dynamic keys
+    allowObjectInHTMLChildren: true;
   }
 }

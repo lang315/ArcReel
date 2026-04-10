@@ -1,27 +1,26 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
-import { X, Loader2, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { X, Loader2, Upload } from "lucide-react";
 import { API } from "@/api";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
+import { DEFAULT_DURATIONS } from "@/utils/provider-models";
 
 export function CreateProjectModal() {
-  const [, navigate] = useLocation();
   const { t } = useTranslation("projects");
+  const { t: tc } = useTranslation();
+  const [, navigate] = useLocation();
   const { setShowCreateModal, setCreatingProject, creatingProject } =
     useProjectsStore();
 
-  const STYLE_OPTIONS = [
-    { value: "Photographic", label: t("createModal.stylePhotographic") },
-    { value: "Anime", label: t("createModal.styleAnime") },
-    { value: "3D Animation", label: t("createModal.style3D") },
-  ] as const;
-
   const [title, setTitle] = useState("");
   const [contentMode, setContentMode] = useState<"narration" | "drama">("narration");
+  const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9">("9:16");
   const [style, setStyle] = useState("Photographic");
+  const [defaultDuration, setDefaultDuration] = useState<number | null>(null);
   const [titleError, setTitleError] = useState("");
+  const [generationMode, setGenerationMode] = useState<"single" | "grid">("single");
   const [styleImageFile, setStyleImageFile] = useState<File | null>(null);
   const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,6 +29,7 @@ export function CreateProjectModal() {
     const file = e.target.files?.[0];
     if (!file) return;
     setStyleImageFile(file);
+    // 创建预览 URL
     const url = URL.createObjectURL(file);
     setStyleImagePreview(url);
   };
@@ -53,13 +53,15 @@ export function CreateProjectModal() {
 
     setCreatingProject(true);
     try {
-      const response = await API.createProject(title.trim(), style, contentMode);
+      const response = await API.createProject(title.trim(), style, contentMode, aspectRatio, defaultDuration, generationMode);
       const projectName = response.name;
 
+      // 如果用户选择了风格参考图，在项目创建后上传
       if (styleImageFile) {
         try {
           await API.uploadStyleImage(projectName, styleImageFile);
         } catch {
+          // 风格图上传失败不阻塞项目创建
           useAppStore.getState().pushToast(
             t("createModal.styleImageUploadFailed"),
             "warning"
@@ -137,7 +139,7 @@ export function CreateProjectModal() {
                   onChange={() => setContentMode("narration")}
                   className="sr-only"
                 />
-                {t("createModal.modeNarration")}
+                {t("createModal.narration")}
               </label>
               <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
                 contentMode === "drama"
@@ -152,8 +154,88 @@ export function CreateProjectModal() {
                   onChange={() => setContentMode("drama")}
                   className="sr-only"
                 />
-                {t("createModal.modeDrama")}
+                {t("createModal.drama")}
               </label>
+            </div>
+          </div>
+
+          {/* Aspect Ratio */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">
+              {t("createModal.aspectRatio")}
+            </label>
+            <div className="flex gap-3">
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
+                aspectRatio === "9:16"
+                  ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                  : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
+              }`}>
+                <input
+                  type="radio"
+                  name="aspectRatio"
+                  value="9:16"
+                  checked={aspectRatio === "9:16"}
+                  onChange={() => setAspectRatio("9:16")}
+                  className="sr-only"
+                />
+                {t("createModal.portrait")}
+              </label>
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
+                aspectRatio === "16:9"
+                  ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                  : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
+              }`}>
+                <input
+                  type="radio"
+                  name="aspectRatio"
+                  value="16:9"
+                  checked={aspectRatio === "16:9"}
+                  onChange={() => setAspectRatio("16:9")}
+                  className="sr-only"
+                />
+                {t("createModal.landscape")}
+              </label>
+            </div>
+          </div>
+
+          {/* Default Duration */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-0.5">
+              {t("createModal.defaultDuration")}
+            </label>
+            <p className="text-xs text-gray-600 mb-1.5">
+              {t("createModal.defaultDurationHint")}
+            </p>
+            <div className="flex gap-2" role="radiogroup" aria-label={t("createModal.defaultDurationAriaLabel")}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={defaultDuration === null}
+                onClick={() => setDefaultDuration(null)}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  defaultDuration === null
+                    ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                    : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
+                }`}
+              >
+                {tc("auto")}
+              </button>
+              {DEFAULT_DURATIONS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  role="radio"
+                  aria-checked={defaultDuration === d}
+                  onClick={() => setDefaultDuration(d)}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    defaultDuration === d
+                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                      : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
+                  }`}
+                >
+                  {d}s
+                </button>
+              ))}
             </div>
           </div>
 
@@ -163,7 +245,11 @@ export function CreateProjectModal() {
               {t("createModal.visualStyle")}
             </label>
             <div className="flex gap-2">
-              {STYLE_OPTIONS.map((opt) => (
+              {([
+                { value: "Photographic", labelKey: "createModal.photographic" },
+                { value: "Anime", labelKey: "createModal.anime" },
+                { value: "3D Animation", labelKey: "createModal.animation3d" },
+              ] as const).map((opt) => (
                 <label
                   key={opt.value}
                   className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
@@ -180,22 +266,64 @@ export function CreateProjectModal() {
                     onChange={() => setStyle(opt.value)}
                     className="sr-only"
                   />
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </label>
               ))}
+            </div>
+          </div>
+
+          {/* Generation Mode */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-0.5">
+              {t("createModal.generationMode")}
+            </label>
+            <p className="text-xs text-gray-600 mb-1.5">
+              {t("createModal.generationModeHint")}
+            </p>
+            <div className="flex gap-3">
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
+                generationMode === "single"
+                  ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                  : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
+              }`}>
+                <input
+                  type="radio"
+                  name="generationMode"
+                  value="single"
+                  checked={generationMode === "single"}
+                  onChange={() => setGenerationMode("single")}
+                  className="sr-only"
+                />
+                {t("createModal.singleMode")}
+              </label>
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
+                generationMode === "grid"
+                  ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                  : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
+              }`}>
+                <input
+                  type="radio"
+                  name="generationMode"
+                  value="grid"
+                  checked={generationMode === "grid"}
+                  onChange={() => setGenerationMode("grid")}
+                  className="sr-only"
+                />
+                {t("createModal.gridMode")}
+              </label>
             </div>
           </div>
 
           {/* Style reference image */}
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">
-              {t("createModal.styleRefImage")} <span className="text-xs text-gray-600 font-normal">{t("createModal.styleRefOptional")}</span>
+              {t("createModal.styleImage")} <span className="text-xs text-gray-600 font-normal">{t("createModal.styleImageOptional")}</span>
             </label>
             {styleImagePreview ? (
               <div className="relative rounded-lg border border-gray-700 overflow-hidden">
                 <img
                   src={styleImagePreview}
-                  alt={t("createModal.styleRefPreviewAlt")}
+                  alt={t("createModal.styleImagePreviewAlt")}
                   className="w-full h-32 object-cover"
                 />
                 <button
@@ -213,7 +341,7 @@ export function CreateProjectModal() {
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
               >
                 <Upload className="h-4 w-4" />
-                {t("createModal.uploadRefImage")}
+                {t("createModal.uploadImage")}
               </button>
             )}
             <input
@@ -224,7 +352,7 @@ export function CreateProjectModal() {
               className="hidden"
             />
             <p className="mt-1 text-xs text-gray-600">
-              {t("createModal.styleRefHint")}
+              {t("createModal.styleImageHint")}
             </p>
           </div>
 
@@ -237,10 +365,10 @@ export function CreateProjectModal() {
             {creatingProject ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                {t("createModal.creating")}
+                {tc("creating")}
               </span>
             ) : (
-              t("createModal.createButton")
+              t("createModal.createProject")
             )}
           </button>
         </form>
